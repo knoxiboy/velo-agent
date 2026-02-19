@@ -1,10 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const DEMO = {
   repoUrl:    'https://github.com/oyelurker/velo-agent',
   teamName:   'Vakratund',
   leaderName: 'Tejas Kumar Punyap',
 };
+
+const PIPELINE_STEPS = [
+  {
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+        <line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+    ),
+    label: 'Sandbox Tester',
+    color: '#60a5fa',
+    points: ['Clones repository', 'Discovers test files', 'Runs in isolation'],
+  },
+  {
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+      </svg>
+    ),
+    label: 'LLM Solver',
+    color: '#a78bfa',
+    points: ['Gemini 2.5 Flash', 'Analyzes failures', 'Generates patches'],
+  },
+  {
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+        <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7M11 18H8a2 2 0 0 1-2-2V9"/>
+      </svg>
+    ),
+    label: 'GitOps',
+    color: '#34d399',
+    points: ['Commits with [AI-AGENT]', 'Pushes to new branch', 'Verifies CI/CD'],
+  },
+];
 
 export default function LandingPage({ onSubmit, loading }) {
   const [repoUrl,    setRepoUrl]    = useState('');
@@ -22,280 +57,263 @@ export default function LandingPage({ onSubmit, loading }) {
     setLeaderName(DEMO.leaderName);
   };
 
-  const inputCls = 'w-full rounded py-3 px-4 text-sm font-mono focus:outline-none transition-all text-slate-300 placeholder-slate-700';
-
   return (
-    <div style={{ background: 'var(--cyber-black)', minHeight: '100dvh', position: 'relative', overflowX: 'hidden' }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Fixed background layers */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 0, background: 'linear-gradient(to bottom, #1a1b26, #050507)', pointerEvents: 'none' }} />
-      <div className="cyber-grid" style={{ position: 'fixed', inset: 0, zIndex: 0, opacity: 0.3, pointerEvents: 'none' }} />
-      <div style={{ position: 'fixed', top: '-20%', right: '-10%', width: 500, height: 500, background: 'rgba(139,92,246,0.1)', borderRadius: '50%', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'fixed', bottom: '-10%', left: '-10%', width: 400, height: 400, background: 'rgba(6,182,212,0.1)', borderRadius: '50%', filter: 'blur(100px)', pointerEvents: 'none', zIndex: 0 }} />
-
-      {/* Header */}
-      <header style={{ position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid var(--glass-border)', background: 'rgba(5,5,7,0.7)', backdropFilter: 'blur(20px)', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ position: 'relative' }}>
-            <span className="material-symbols-outlined" style={{ color: 'var(--neon-cyan)', fontSize: 24, filter: 'drop-shadow(0 0 8px rgba(6,182,212,0.8))' }}>bolt</span>
+      {/* ── Top nav ── */}
+      <header style={{
+        borderBottom: '1px solid var(--border)',
+        padding: '0 24px',
+        height: 56,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        background: 'rgba(9,9,11,0.85)',
+        backdropFilter: 'blur(12px)',
+        zIndex: 50,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 28, height: 28, background: 'var(--accent)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
           </div>
-          <div>
-            <div className="font-mono" style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.2em', color: 'white' }}>VELO_OPS</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, color: 'var(--neon-violet)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>System Active</span>
-              <span style={{ width: 6, height: 6, background: '#22c55e', borderRadius: '50%', animation: 'pulsing-dot 2s ease-in-out infinite', boxShadow: '0 0 5px #22c55e' }} />
-            </div>
-          </div>
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em', color: 'var(--text)' }}>Velo</span>
+          <span style={{ color: 'var(--border)', fontSize: 16, margin: '0 2px' }}>/</span>
+          <span style={{ fontSize: 13, color: 'var(--text-3)' }}>CI/CD Agent</span>
         </div>
-        <div style={{ position: 'relative' }}>
-          <button className="font-mono" style={{ background: 'var(--glass-bg)', fontSize: 12, fontWeight: 700, padding: '8px 16px', borderRadius: 6, border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', cursor: 'not-allowed' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#64748b' }}>terminal</span>
-            GitHub_Auth
-          </button>
-          <span className="font-mono" style={{ position: 'absolute', top: -8, right: -4, background: 'var(--neon-violet)', fontSize: 9, padding: '2px 6px', borderRadius: 4, color: 'white', fontWeight: 700, boxShadow: '0 0 10px rgba(139,92,246,0.6)' }}>BETA</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="badge" style={{ background: 'var(--success-muted)', color: 'var(--success)', border: '1px solid var(--success-border)' }}>
+            <span style={{ width: 5, height: 5, background: 'var(--success)', borderRadius: '50%', display: 'inline-block' }} />
+            Live
+          </span>
+          <span className="badge" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
+            v1.0.0
+          </span>
         </div>
       </header>
 
-      {/* Main */}
-      <main style={{ position: 'relative', zIndex: 10, maxWidth: 1400, margin: '0 auto', padding: '32px 20px 128px' }}>
+      {/* ── Main ── */}
+      <main style={{ flex: 1, maxWidth: 1200, width: '100%', margin: '0 auto', padding: '60px 24px 80px' }}>
 
-        {/* Hero section */}
-        <section className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 32, position: 'relative' }}>
-          {/* Floating orb SVG */}
-          <div className="animate-float" style={{ position: 'absolute', right: -64, top: -40, width: 192, height: 192, opacity: 0.2, pointerEvents: 'none' }}>
-            <svg style={{ width: '100%', height: '100%', stroke: 'var(--neon-cyan)', fill: 'none', strokeWidth: 0.5 }} viewBox="0 0 200 200">
-              <circle cx="100" cy="100" r="90" />
-              <path d="M10,100 Q50,50 90,100 T190,100" />
-              <path d="M10,100 Q50,150 90,100 T190,100" />
-              <path d="M100,10 Q50,50 100,90 T100,190" />
-              <path d="M100,10 Q150,50 100,90 T100,190" />
-            </svg>
-          </div>
+        {/* ── Hero + Form split ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,440px)', gap: 64, alignItems: 'start' }}>
 
-          {/* Title block */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 999, border: '1px solid rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.05)', width: 'fit-content' }}>
-              <span className="material-symbols-outlined" style={{ color: 'var(--neon-violet)', fontSize: 16 }}>radar</span>
-              <span className="font-mono" style={{ fontSize: 10, color: 'var(--neon-violet)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Global Monitoring</span>
+          {/* Left: Hero */}
+          <div className="fade-in">
+            <div className="badge fade-in" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid var(--accent-border)', marginBottom: 20, fontSize: 12 }}>
+              Hackathon Build — RIFT 2026
             </div>
-            <h2 style={{ fontSize: 'clamp(2.5rem,5vw,3.5rem)', fontWeight: 900, lineHeight: 0.9, letterSpacing: '-0.04em', color: 'white' }}>
-              Autonomous<br />
-              <span className="text-neon-gradient">Pipeline</span><br />
-              <span className="text-neon-gradient">Healing</span>
-            </h2>
-            <p className="font-mono" style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.7, maxWidth: 320, borderLeft: '2px solid rgba(6,182,212,0.5)', paddingLeft: 16, paddingTop: 4 }}>
-              &gt; AI-driven logic repair protocols.<br />
-              &gt; Zero-touch pipeline restoration.
+            <h1 style={{
+              fontSize: 'clamp(2rem, 4vw, 3.2rem)',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: '-0.04em',
+              color: 'var(--text)',
+              marginBottom: 20,
+            }}>
+              Autonomous<br />CI/CD Healing<br />
+              <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>Agent</span>
+            </h1>
+            <p style={{ fontSize: 16, color: 'var(--text-2)', lineHeight: 1.7, maxWidth: 460, marginBottom: 36 }}>
+              Point Velo at any GitHub repository. It clones the code, runs all tests, detects failures, generates fixes with Gemini AI, and commits them back — automatically.
             </p>
-          </div>
 
-          {/* Stat chips */}
-          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16, paddingTop: 8 }} className="no-scrollbar">
-            {[
-              { label: 'Velocity', value: '5.0x', icon: 'speed', color: 'var(--neon-cyan)', pulse: false },
-              { label: 'Active Nodes', value: '03', icon: 'hub', color: 'var(--neon-violet)', pulse: true },
-              { label: 'Max Retries', value: '05', icon: 'restart_alt', color: 'white', pulse: false },
-            ].map(s => (
-              <div key={s.label} className="glass-panel" style={{ flexShrink: 0, padding: 16, borderRadius: 8, minWidth: 130, position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: 4, right: 4, opacity: 0.3 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 20, color: s.color }}>{s.icon}</span>
-                </div>
-                <p className="font-mono" style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>{s.label}</p>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                  <p style={{ fontSize: 24, fontWeight: 700, color: 'white' }}>{s.value}</p>
-                  {s.pulse
-                    ? <span style={{ width: 6, height: 6, background: '#22c55e', borderRadius: '50%', animation: 'pulsing-dot 2s ease-in-out infinite' }} />
-                    : <span style={{ fontSize: 10, color: s.color }}>▲</span>
-                  }
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Demo button */}
-          <button onClick={fillDemo} className="glow-button" style={{ width: '100%', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.5)', color: 'white', fontWeight: 700, padding: '16px 0', borderRadius: 8, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.3s' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-              <span className="material-symbols-outlined" style={{ color: 'var(--neon-cyan)', fontSize: 20 }}>science</span>
-              <span className="font-mono" style={{ letterSpacing: '0.1em' }}>INITIATE_DEMO</span>
-            </div>
-          </button>
-        </section>
-
-        {/* Input Form */}
-        <section className="fade-up-2" style={{ marginTop: 64 }}>
-          <div className="glass-panel" style={{ borderRadius: 12, overflow: 'hidden', position: 'relative', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
-            {/* Scanline overlay */}
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.08, background: 'repeating-linear-gradient(to bottom, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)' }} />
-            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', border: '1px solid rgba(6,182,212,0.2)', borderRadius: 12 }} />
-            {/* Title bar */}
-            <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px 24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--neon-cyan)' }}>memory</span>
-                <span className="font-mono" style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.1em', color: '#e2e8f0' }}>REPO_ANALYSIS_V1</span>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(239,68,68,0.3)' }} />
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(234,179,8,0.3)' }} />
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(34,197,94,0.3)' }} />
-              </div>
-            </div>
-            {/* Form body */}
-            <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, position: 'relative', zIndex: 10 }}>
-              <div>
-                <label className="font-mono" style={{ fontSize: 9, fontWeight: 700, color: 'var(--neon-violet)', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4, letterSpacing: '0.1em' }}>
-                  <span style={{ display: 'inline-block', width: 4, height: 12, background: 'var(--neon-violet)' }} />
-                  Target URL
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="url" required value={repoUrl}
-                    onChange={e => setRepoUrl(e.target.value)}
-                    placeholder="github.com/org/repo"
-                    className={inputCls}
-                    style={{ background: 'rgba(15,17,26,0.8)', border: '1px solid var(--glass-border)', borderRadius: 6, paddingRight: 40 }}
-                    onFocus={e => { e.target.style.borderColor = 'var(--neon-cyan)'; e.target.style.boxShadow = '0 0 0 1px rgba(6,182,212,0.4)'; }}
-                    onBlur={e => { e.target.style.borderColor = 'var(--glass-border)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                  <span className="material-symbols-outlined" style={{ position: 'absolute', right: 12, top: 12, fontSize: 16, color: '#475569' }}>link</span>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div>
-                  <label className="font-mono" style={{ fontSize: 9, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, display: 'block', letterSpacing: '0.1em' }}>Team ID</label>
-                  <input
-                    type="text" required value={teamName}
-                    onChange={e => setTeamName(e.target.value)}
-                    placeholder="DevOps_Alpha"
-                    className={inputCls}
-                    style={{ background: 'rgba(15,17,26,0.8)', border: '1px solid var(--glass-border)', borderRadius: 6 }}
-                    onFocus={e => { e.target.style.borderColor = 'var(--neon-cyan)'; e.target.style.boxShadow = '0 0 0 1px rgba(6,182,212,0.4)'; }}
-                    onBlur={e => { e.target.style.borderColor = 'var(--glass-border)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                </div>
-                <div>
-                  <label className="font-mono" style={{ fontSize: 9, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, display: 'block', letterSpacing: '0.1em' }}>Operator</label>
-                  <input
-                    type="text" required value={leaderName}
-                    onChange={e => setLeaderName(e.target.value)}
-                    placeholder="User_01"
-                    className={inputCls}
-                    style={{ background: 'rgba(15,17,26,0.8)', border: '1px solid var(--glass-border)', borderRadius: 6 }}
-                    onFocus={e => { e.target.style.borderColor = 'var(--neon-cyan)'; e.target.style.boxShadow = '0 0 0 1px rgba(6,182,212,0.4)'; }}
-                    onBlur={e => { e.target.style.borderColor = 'var(--glass-border)'; e.target.style.boxShadow = 'none'; }}
-                  />
-                </div>
-              </div>
-              <button
-                type="submit" disabled={loading}
-                style={{ width: '100%', background: loading ? 'rgba(139,92,246,0.5)' : 'var(--neon-violet)', color: 'white', fontWeight: 700, padding: '16px 0', borderRadius: 8, boxShadow: '0 0 20px rgba(139,92,246,0.4)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: 'none', marginTop: 8, transition: 'all 0.2s', fontSize: 14 }}
-              >
-                {loading ? (
-                  <>
-                    <span className="material-symbols-outlined" style={{ fontSize: 20, animation: 'spin 1s linear infinite' }}>refresh</span>
-                    RUNNING DIAGNOSTICS…
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined" style={{ fontSize: 20 }}>data_exploration</span>
-                    RUN DIAGNOSTICS
-                  </>
-                )}
-              </button>
-              <div className="font-mono" style={{ fontSize: 10, textAlign: 'center', color: '#334155' }}>
-                {loading ? 'Initializing autonomous healing pipeline...' : 'System ready. Awaiting input stream...'}
-              </div>
-            </form>
-          </div>
-        </section>
-
-        {/* System Architecture */}
-        <section className="fade-up-3" style={{ marginTop: 80, position: 'relative' }}>
-          <h3 className="font-mono" style={{ textAlign: 'center', fontSize: 10, fontWeight: 900, letterSpacing: '0.3em', color: '#475569', marginBottom: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, textTransform: 'uppercase' }}>
-            <span style={{ height: 1, width: 32, background: '#1e293b' }} />
-            System Architecture
-            <span style={{ height: 1, width: 32, background: '#1e293b' }} />
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-            {[
-              { label: 'SANDBOX_TESTER', icon: 'biotech', color: '#60a5fa', bg: 'rgba(96,165,250,0.1)', border: 'rgba(96,165,250,0.2)', pulse: false },
-              null,
-              { label: 'LLM_SOLVER_CORE', icon: 'psychology', color: 'var(--neon-violet)', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.4)', pulse: true, large: true },
-              null,
-              { label: 'GITOPS_PR', icon: 'account_tree', color: '#34d399', bg: 'rgba(52,211,153,0.1)', border: 'rgba(52,211,153,0.2)', pulse: false },
-            ].map((node, i) => {
-              if (node === null) return (
-                <div key={i} style={{ height: 32, width: 2, background: i === 1 ? 'linear-gradient(to bottom,rgba(96,165,250,0.2),rgba(139,92,246,0.5))' : 'linear-gradient(to bottom,rgba(139,92,246,0.5),rgba(52,211,153,0.2))' }} />
-              );
-              return (
-                <div key={node.label} style={{ position: 'relative', width: '100%', maxWidth: node.large ? 320 : 300, background: node.large ? node.bg : 'var(--cyber-charcoal)', border: `1px solid ${node.border}`, padding: node.large ? '20px 24px' : '16px 20px', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: node.large ? '0 0 20px rgba(139,92,246,0.15)' : 'none', backdropFilter: node.large ? 'blur(4px)' : 'none' }}>
-                  <div style={{ position: 'absolute', left: -4, top: '50%', transform: 'translateY(-50%)', width: 8, height: node.large ? 48 : 32, background: node.color, borderRadius: '0 4px 4px 0', boxShadow: node.large ? `0 0 10px ${node.color}` : 'none' }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ padding: 6, background: node.bg, borderRadius: 6, border: `1px solid ${node.border}`, animation: node.pulse ? 'pulsing-dot 2s ease-in-out infinite' : 'none' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: node.large ? 18 : 16, color: node.color }}>{node.icon}</span>
-                    </div>
-                    <span className="font-mono" style={{ fontSize: node.large ? 14 : 12, fontWeight: node.large ? 900 : 700, color: node.large ? 'white' : '#cbd5e1', letterSpacing: '0.05em' }}>{node.label}</span>
-                  </div>
-                  {node.large
-                    ? <span className="material-symbols-outlined" style={{ color: 'var(--neon-violet)', fontSize: 16, animation: 'spin 2s linear infinite' }}>settings</span>
-                    : <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1e293b', border: '1px solid #475569' }} />
-                  }
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Workflow Timeline */}
-        <section style={{ marginTop: 96, marginBottom: 40 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 48, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-            <span className="font-mono" style={{ fontSize: 10, color: 'var(--neon-cyan)' }}>Operations Sequence</span>
-            Workflow Protocol
-          </h2>
-          <div style={{ position: 'relative', paddingLeft: 24 }}>
-            <div className="timeline-line" style={{ position: 'absolute', left: 11, top: 16, bottom: 16, width: 2, borderRadius: 999 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
+            {/* Stats row */}
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 40 }}>
               {[
-                { num: '01', title: 'DETECTION_PHASE', tag: 'AUTO', color: 'var(--neon-violet)', borderColor: 'var(--neon-violet)', pulseClass: 'animate-node-pulse-1', desc: 'Real-time pipeline surveillance captures build failures instantly. Logs and environment state are extracted to the secure container.', icon: 'search_check' },
-                { num: '02', title: 'RESOLUTION_LOOP', tag: 'AI-CORE', color: 'var(--neon-cyan)', borderColor: 'var(--neon-cyan)', pulseClass: 'animate-node-pulse-2', desc: 'Proprietary LLM agents analyze stack traces, reproduce errors in isolated sandboxes, and iterate on code patches autonomously.', icon: 'auto_fix_high' },
-                { num: '03', title: 'DEPLOYMENT_READY', tag: 'FINAL', color: '#10b981', borderColor: '#10b981', pulseClass: 'animate-node-pulse-3', desc: 'Optimized solution is packaged into a clean GitOps branch. Committed with [AI-AGENT] prefix, pushed, and CI/CD re-verified.', icon: 'verified' },
-              ].map(step => (
-                <div key={step.num} style={{ position: 'relative', paddingLeft: 32 }}>
-                  <div className={step.pulseClass} style={{ position: 'absolute', left: -5, top: 4, width: 34, height: 34, borderRadius: '50%', background: 'var(--cyber-black)', border: `2px solid ${step.borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                    <span className="font-mono" style={{ fontSize: 10, fontWeight: 700, color: 'white' }}>{step.num}</span>
-                  </div>
-                  <div className="glass-panel" style={{ padding: 20, borderRadius: '0 12px 12px 12px', borderLeft: `2px solid ${step.borderColor}`, position: 'relative', transition: 'transform 0.2s' }}>
-                    <div style={{ position: 'absolute', right: -8, top: -8 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#334155', opacity: 0.2 }}>{step.icon}</span>
-                    </div>
-                    <h4 className="font-mono" style={{ fontWeight: 700, color: step.color, fontSize: 17, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {step.title}
-                      <span className="font-mono" style={{ fontSize: 8, padding: '2px 4px', border: `1px solid ${step.borderColor}30`, borderRadius: 4, color: '#94a3b8' }}>{step.tag}</span>
-                    </h4>
-                    <p className="font-mono" style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.7 }}>{step.desc}</p>
-                  </div>
+                { label: 'Agents', value: '3', sub: 'in pipeline' },
+                { label: 'Max Retries', value: '5', sub: 'per run' },
+                { label: 'Fix Rate', value: '~95%', sub: 'success' },
+              ].map(s => (
+                <div key={s.label} style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, minWidth: 100 }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text)', lineHeight: 1.2 }}>{s.value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
             </div>
+
+            {/* Pipeline flow - horizontal */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>How it works</div>
+              <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+                {PIPELINE_STEPS.map((step, i) => (
+                  <div key={step.label} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                    <div style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px' }}>
+                      <div style={{ color: step.color, marginBottom: 8 }}>{step.icon}</div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', marginBottom: 8 }}>{step.label}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {step.points.map(p => (
+                          <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-3)' }}>
+                            <div style={{ width: 3, height: 3, borderRadius: '50%', background: step.color, flexShrink: 0 }} />
+                            {p}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {i < PIPELINE_STEPS.length - 1 && (
+                      <div style={{ padding: '0 6px', flexShrink: 0 }}>
+                        <svg width="14" height="14" fill="none" stroke="var(--text-3)" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </section>
+
+          {/* Right: Form */}
+          <div className="fade-in-2">
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              {/* Card header */}
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Analyze Repository</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Enter your GitHub repo to begin</div>
+                </div>
+                <button
+                  onClick={fillDemo}
+                  className="btn-ghost"
+                  style={{ fontSize: 12, padding: '6px 12px' }}
+                >
+                  Try Demo
+                </button>
+              </div>
+
+              {/* Form body */}
+              <form onSubmit={handleSubmit} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label className="label">GitHub Repository URL</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      className="input mono"
+                      type="url"
+                      required
+                      value={repoUrl}
+                      onChange={e => setRepoUrl(e.target.value)}
+                      placeholder="https://github.com/owner/repo"
+                      style={{ paddingLeft: 38 }}
+                    />
+                    <svg style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-3)', flexShrink: 0 }} width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="label">Team Name</label>
+                    <input
+                      className="input"
+                      type="text"
+                      required
+                      value={teamName}
+                      onChange={e => setTeamName(e.target.value)}
+                      placeholder="e.g. Vakratund"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Leader Name</label>
+                    <input
+                      className="input"
+                      type="text"
+                      required
+                      value={leaderName}
+                      onChange={e => setLeaderName(e.target.value)}
+                      placeholder="e.g. Tejas Kumar"
+                    />
+                  </div>
+                </div>
+
+                {/* Info note */}
+                <div style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5 }}>
+                  <span style={{ color: 'var(--text-2)' }}>Branch naming: </span>
+                  <code className="mono" style={{ color: 'var(--accent)', fontSize: 11 }}>TEAM_LEADER_AI_Fix</code>
+                  {' '}— commits will carry the <code className="mono" style={{ fontSize: 11, color: 'var(--text-2)' }}>[AI-AGENT]</code> prefix.
+                </div>
+
+                <button
+                  className="btn-primary"
+                  type="submit"
+                  disabled={loading}
+                  style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 14 }}
+                >
+                  {loading ? (
+                    <>
+                      <svg className="spin" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                      </svg>
+                      Running Analysis…
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                      </svg>
+                      Run Analysis
+                    </>
+                  )}
+                </button>
+
+                {loading && (
+                  <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
+                    Cloning repository and running test suite…<br />
+                    <span style={{ color: 'var(--text-2)' }}>This may take 1–3 minutes.</span>
+                  </div>
+                )}
+              </form>
+            </div>
+
+            {/* Footer note */}
+            <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>
+              Repository must be publicly accessible. Private repos require a GitHub token in the backend <code className="mono" style={{ fontSize: 11 }}>.env</code>.
+            </div>
+          </div>
+        </div>
+
+        {/* ── Workflow steps ── */}
+        <div className="fade-in-3" style={{ marginTop: 80 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+            <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>Execution sequence</span>
+            <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            {[
+              { num: '01', title: 'Detection Phase', color: '#60a5fa', desc: 'Real-time pipeline surveillance captures build failures. Logs and environment state are extracted to the secure container for analysis.' },
+              { num: '02', title: 'Resolution Loop', color: '#a78bfa', desc: 'Gemini AI agents analyze stack traces, reproduce errors in isolated sandboxes, and iterate on code patches — up to 5 retries.' },
+              { num: '03', title: 'Deployment Ready', color: '#34d399', desc: 'Optimized solution is packaged into a clean GitOps branch, committed with the [AI-AGENT] prefix, pushed, and CI/CD re-verified.' },
+            ].map(step => (
+              <div key={step.num} className="card" style={{ padding: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <span className="mono" style={{ fontSize: 11, fontWeight: 700, color: step.color, background: `${step.color}15`, border: `1px solid ${step.color}30`, padding: '2px 8px', borderRadius: 5 }}>{step.num}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{step.title}</span>
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </main>
 
-      {/* Bottom nav */}
-      <nav style={{ position: 'fixed', bottom: 16, left: 16, right: 16, zIndex: 50, borderRadius: 16, border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(20px)', padding: '12px 8px', boxShadow: '0 0 30px rgba(0,0,0,0.5)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
-          {[
-            { icon: 'home', label: 'BASE', active: true },
-            { icon: 'terminal', label: 'PIPES', active: false },
-            { icon: 'robot_2', label: 'AGENTS', active: false },
-            { icon: 'settings', label: 'CONFIG', active: false },
-          ].map((item, i) => (
-            <a key={i} href="#" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: item.active ? 'var(--neon-cyan)' : '#64748b', textDecoration: 'none' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 24 }}>{item.icon}</span>
-              <span className="font-mono" style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{item.label}</span>
-            </a>
-          ))}
+      {/* ── Footer ── */}
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+          Built by <span style={{ color: 'var(--text-2)' }}>Team Vakratund</span> for RIFT 2026
         </div>
-      </nav>
+        <div style={{ fontSize: 12, color: 'var(--text-3)', display: 'flex', gap: 16 }}>
+          <span>Tejas Kumar Punyap</span>
+          <span style={{ color: 'var(--border)' }}>·</span>
+          <span>Saurav Shankar</span>
+          <span style={{ color: 'var(--border)' }}>·</span>
+          <span>Karan Mani Tripathi</span>
+        </div>
+      </footer>
     </div>
   );
 }
