@@ -3,25 +3,37 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const TOKEN_KEY = 'velo_jwt';
 
+// Use localStorage so login persists across browser restarts; signOut clears it
+function getStoredToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredToken(t) {
+  try {
+    if (t) {
+      localStorage.setItem(TOKEN_KEY, t);
+      sessionStorage.setItem(TOKEN_KEY, t);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
+    }
+  } catch (_) {}
+}
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setTokenState] = useState(() => {
-    try {
-      return sessionStorage.getItem(TOKEN_KEY) || null;
-    } catch {
-      return null;
-    }
-  });
+  const [token, setTokenState] = useState(() => getStoredToken());
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const setToken = useCallback((t) => {
     setTokenState(t);
-    try {
-      if (t) sessionStorage.setItem(TOKEN_KEY, t);
-      else sessionStorage.removeItem(TOKEN_KEY);
-    } catch (_) {}
+    setStoredToken(t);
   }, []);
 
   useEffect(() => {
@@ -64,12 +76,9 @@ export function AuthProvider({ children }) {
   }, [token, setToken]);
 
   const signOut = useCallback(() => {
-    try {
-      sessionStorage.removeItem(TOKEN_KEY);
-    } catch (_) {}
+    setStoredToken(null);
     setTokenState(null);
     setUser(null);
-    // Remove ?token= from URL so refresh doesn't restore session
     const url = new URL(window.location.href);
     if (url.searchParams.has('token')) {
       url.searchParams.delete('token');
