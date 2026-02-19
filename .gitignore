@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Environment variables (never commit secrets)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/build/
+.npm
+
+# Vite / Build output
+dist/
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+pip-debug.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary / cloned repos (created by the agent at runtime)
+velo_*/
+tmp_*/
+
+# Docker
+*.env.docker
+
+# Cursor agent skills (local AI tooling — not part of the project)
+.cursor/
+*.cursor/
+
