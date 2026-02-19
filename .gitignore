@@ -57,4 +57,5 @@ tmp_*/
 # Cursor agent skills (local AI tooling — not part of the project)
 .cursor/
 *.cursor/
+.agents/
 
