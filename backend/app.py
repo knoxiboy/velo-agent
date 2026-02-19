@@ -10,6 +10,7 @@ AUTONOMOUS DESIGN NOTE:
   callbacks that require a human response anywhere in this file or agent.py.
 """
 
+import json
 import os
 import logging
 import re
@@ -64,6 +65,59 @@ def _parse_bug_report(line: str) -> dict | None:
             "fix_description": m.group(4).strip(),
         }
     return None
+
+
+# ---------------------------------------------------------------------------
+# Commit results.json to the healing branch so it's accessible in GitHub
+# ---------------------------------------------------------------------------
+def _commit_results_json(repo_path: str, formatted_branch: str, payload: dict) -> None:
+    """
+    Writes results.json to the repo root and commits + pushes it on the
+    healing branch.  This is a best-effort operation — failures are logged
+    but do not raise so the HTTP response is always returned.
+    """
+    try:
+        repo = git.Repo(repo_path)
+
+        # Ensure we are on the healing branch (node_gitops already checked it out)
+        try:
+            current = repo.active_branch.name
+        except TypeError:
+            current = "DETACHED_HEAD"
+
+        if current != formatted_branch:
+            try:
+                repo.git.checkout(formatted_branch)
+            except git.GitCommandError:
+                logger.warning(
+                    "results.json commit skipped: could not checkout '%s'", formatted_branch
+                )
+                return
+
+        results_path = os.path.join(repo_path, "results.json")
+        with open(results_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+
+        repo.index.add(["results.json"])
+        if repo.index.diff("HEAD"):
+            author_name  = os.getenv("GIT_AUTHOR_NAME")
+            author_email = os.getenv("GIT_AUTHOR_EMAIL")
+            commit_msg   = "[AI-AGENT] Add results.json — final pipeline report"
+            if author_name and author_email:
+                actor = git.Actor(author_name, author_email)
+                repo.index.commit(commit_msg, author=actor, committer=actor)
+            else:
+                repo.index.commit(commit_msg)
+
+            origin  = repo.remote(name="origin")
+            refspec = f"{formatted_branch}:{formatted_branch}"
+            origin.push(refspec=refspec, set_upstream=True)
+            logger.info("results.json committed and pushed to '%s'.", formatted_branch)
+        else:
+            logger.info("results.json unchanged — no commit needed.")
+
+    except Exception as exc:
+        logger.warning("Could not commit results.json: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +271,22 @@ def analyze():
                     "No bugs reported after attempt %d — nothing left to fix.", attempt
                 )
                 break
+
+        # -- Commit final results.json to the healing branch ------------
+        # Best-effort: failures are logged, not raised.
+        _commit_results_json(tmp_dir, formatted_branch, {
+            "repo_url":        repo_url,
+            "team_name":       team_name,
+            "leader_name":     leader_name,
+            "branch_name":     formatted_branch,
+            "total_failures":  total_failures,
+            "total_fixes":     total_fixes_applied,
+            "ci_status":       final_status,
+            "iterations_used": len(timeline),
+            "max_iterations":  MAX_RETRIES,
+            "timeline":        timeline,
+            "fixes":           all_fixes,
+        })
 
         # -- Score calculation ------------------------------------------
         elapsed            = time.time() - start_time

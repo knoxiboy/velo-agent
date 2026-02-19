@@ -87,10 +87,98 @@ function ErrorBanner({ message, onDismiss }) {
   );
 }
 
+const PIPELINE_NODES = [
+  {
+    label: 'Sandbox Tester',
+    color: 'border-indigo-500/50 bg-indigo-500/5',
+    accent: 'text-indigo-400',
+    bulletColor: 'bg-indigo-400',
+    iconColor: 'bg-indigo-500/10 border-indigo-500/30',
+    points: ['Run all test files', 'Detect failures', 'Docker / subprocess'],
+    icon: (
+      <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" />
+      </svg>
+    ),
+  },
+  {
+    label: 'LLM Solver',
+    color: 'border-violet-500/50 bg-violet-500/5',
+    accent: 'text-violet-400',
+    bulletColor: 'bg-violet-400',
+    iconColor: 'bg-violet-500/10 border-violet-500/30',
+    points: ['Gemini 2.5 Flash AI', 'Root cause analysis', 'Generate code patch'],
+    icon: (
+      <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'GitOps',
+    color: 'border-emerald-500/50 bg-emerald-500/5',
+    accent: 'text-emerald-400',
+    bulletColor: 'bg-emerald-400',
+    iconColor: 'bg-emerald-500/10 border-emerald-500/30',
+    points: ['Commit with [AI-AGENT]', 'Push fix branch', 'Re-run & verify'],
+    icon: (
+      <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414A1 1 0 0120 8.414V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+      </svg>
+    ),
+  },
+];
+
+function PipelineDiagram() {
+  return (
+    <div className="w-full py-8">
+      <div className="text-center mb-6">
+        <span className="text-xs text-slate-500 uppercase tracking-[0.2em] font-semibold">How it works</span>
+      </div>
+      <div className="flex flex-col md:flex-row items-stretch gap-0">
+        {PIPELINE_NODES.map((node, i) => (
+          <div key={node.label} className="flex flex-col md:flex-row items-center flex-1">
+            {/* Node card */}
+            <div className={`flex-1 w-full rounded-2xl border p-5 ${node.color}`}>
+              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-3 ${node.iconColor}`}>
+                {node.icon}
+              </div>
+              <p className={`text-xs font-black uppercase tracking-[0.15em] mb-2 ${node.accent}`}>{node.label}</p>
+              <ul className="space-y-1">
+                {node.points.map(pt => (
+                  <li key={pt} className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className={`w-1 h-1 rounded-full flex-shrink-0 ${node.bulletColor}`} />
+                    {pt}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {/* Arrow between nodes */}
+            {i < PIPELINE_NODES.length - 1 && (
+              <div className="flex items-center justify-center md:px-3 py-3 md:py-0 flex-shrink-0">
+                <svg className="w-5 h-5 text-slate-600 md:block hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <svg className="w-5 h-5 text-slate-600 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [demoFill, setDemoFill] = useState(null);
 
   const handleSubmit = async (formData) => {
     setLoading(true);
@@ -148,7 +236,7 @@ export default function App() {
 
       {/* Header */}
       <header className="relative z-10 border-b border-[#1a1a2e] bg-[#0a0a0f]/80 backdrop-blur-xl sticky top-0">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-6">
             <StatusDot active={loading || !!result} />
@@ -172,42 +260,108 @@ export default function App() {
         </div>
       </header>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-6 py-10">
-        {/* Hero */}
-        {!result && !loading && (
-          <div className="text-center mb-12 fade-in-up">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" style={{ animation: 'pulse 2s ease-in-out infinite' }} />
-              Autonomous Healing Pipeline
-            </div>
-            <h1 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
-              CI/CD Failure
-              <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent"> Healed</span>
-              {' '}Automatically
-            </h1>
-            <p className="text-slate-500 text-lg max-w-2xl mx-auto">
-              Submit your repository and let Velo detect, analyze, and patch CI/CD failures autonomously — with a full audit trail.
-            </p>
-          </div>
-        )}
+      <main className="relative z-10 w-full px-6 py-10">
 
-        {/* Section 1 — Input Form */}
+        {/* Landing layout — two columns on xl screens, centered */}
         {!result && (
-          <div className="mb-10">
-            <InputForm onSubmit={handleSubmit} loading={loading} />
+          <div className="max-w-[1400px] mx-auto mb-10">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 xl:gap-20 items-center xl:py-12 py-6">
+
+              {/* Left — Hero */}
+              <div className="fade-in-up flex flex-col justify-center items-center xl:items-start text-center xl:text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-6 w-fit">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" style={{ animation: 'pulse 2s ease-in-out infinite' }} />
+                  Autonomous Healing Pipeline
+                </div>
+                <h1 className="text-4xl md:text-5xl xl:text-6xl font-black text-white mb-5 leading-[1.1]">
+                  CI/CD Failures
+                  <br />
+                  <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">Healed</span>
+                  {' '}Automatically
+                </h1>
+                <p className="text-slate-400 text-lg leading-relaxed mb-8 max-w-lg">
+                  Submit your repository and let Velo detect, analyze, and patch CI/CD failures autonomously — with a full audit trail.
+                </p>
+
+                {/* Stats row */}
+                <div className="flex flex-wrap gap-6 justify-center xl:justify-start">
+                  {[
+                    { value: '5x', label: 'Faster fixes' },
+                    { value: '3', label: 'Agent nodes' },
+                    { value: '5', label: 'Max retries' },
+                  ].map(({ value, label }) => (
+                    <div key={label} className="flex flex-col">
+                      <span className="text-2xl font-black text-white">{value}</span>
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">{label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Try demo button */}
+                <div className="mt-8">
+                  <button
+                    onClick={() => setDemoFill({
+                      repo_url: 'https://github.com/oyelurker/velo-agent',
+                      team_name: 'RIFT ORGANISERS',
+                      leader_name: 'Saiyam Kumar',
+                    })}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold hover:bg-indigo-500/20 hover:border-indigo-500/50 transition-all duration-200"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Try with Demo Repo
+                  </button>
+                </div>
+
+                {/* Pipeline mini-diagram */}
+                <div className="mt-8 flex items-center gap-2 flex-wrap justify-center xl:justify-start">
+                  {[
+                    { label: 'Sandbox Tester', color: 'border-indigo-500/40 text-indigo-400' },
+                    { label: 'LLM Solver', color: 'border-violet-500/40 text-violet-400' },
+                    { label: 'GitOps', color: 'border-emerald-500/40 text-emerald-400' },
+                  ].map(({ label, color }, i) => (
+                    <div key={label} className="flex items-center gap-2">
+                      <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${color} bg-[#0d0d1f]`}>
+                        {label}
+                      </div>
+                      {i < 2 && (
+                        <svg className="w-4 h-4 text-slate-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right — Input Form */}
+              <div className="fade-in-up" style={{ animationDelay: '0.1s' }}>
+                <InputForm onSubmit={handleSubmit} loading={loading} prefill={demoFill} />
+              </div>
+
+            </div>
+
+            {/* Pipeline diagram — below the two columns */}
+            {!loading && (
+              <div className="border-t border-[#1a1a2e] mt-4 pt-2">
+                <PipelineDiagram />
+              </div>
+            )}
           </div>
         )}
 
         {/* Error banner */}
         {error && (
-          <div className="mb-8">
+          <div className="max-w-[1400px] mx-auto mb-8">
             <ErrorBanner message={error} onDismiss={() => setError(null)} />
           </div>
         )}
 
         {/* Results Dashboard */}
         {result && (
-          <div className="space-y-6">
+          <div className="max-w-[1400px] mx-auto space-y-6">
             {/* Section 2 — Run Summary */}
             <RunSummaryCard data={result} />
 
@@ -220,7 +374,7 @@ export default function App() {
                 <FixesTable fixes={result.fixes || []} />
               </div>
               <div className="xl:col-span-2">
-                <CICDTimeline runs={result.timeline || []} />
+                <CICDTimeline runs={result.timeline || []} maxIterations={result.max_iterations || 5} />
               </div>
             </div>
           </div>
@@ -229,7 +383,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-[#1a1a2e] mt-16 py-6">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between flex-wrap gap-2">
+        <div className="max-w-[1400px] mx-auto px-6 flex items-center justify-between flex-wrap gap-2">
           <span className="text-xs text-slate-700">Velo Autonomous CI/CD Agent — 2026</span>
           <span className="text-xs text-slate-700 font-mono">POST → {(import.meta.env.VITE_API_URL || 'http://localhost:5000')}/api/analyze</span>
         </div>

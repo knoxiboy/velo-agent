@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function Spinner() {
   return (
@@ -28,10 +28,18 @@ function Spinner() {
   );
 }
 
-export default function InputForm({ onSubmit, loading }) {
+export default function InputForm({ onSubmit, loading, prefill }) {
   const [repoUrl, setRepoUrl] = useState('');
   const [teamName, setTeamName] = useState('');
   const [leaderName, setLeaderName] = useState('');
+
+  useEffect(() => {
+    if (prefill) {
+      if (prefill.repo_url !== undefined) setRepoUrl(prefill.repo_url);
+      if (prefill.team_name !== undefined) setTeamName(prefill.team_name);
+      if (prefill.leader_name !== undefined) setLeaderName(prefill.leader_name);
+    }
+  }, [prefill]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -44,7 +52,7 @@ export default function InputForm({ onSubmit, loading }) {
   const labelClass = 'block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2';
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full">
       <div className="rounded-2xl border border-[#1e1e3a] bg-[#0d0d1f] p-8 shadow-2xl shadow-black/50">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
@@ -84,7 +92,7 @@ export default function InputForm({ onSubmit, loading }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Team Name</label>
                 <div className="relative">
