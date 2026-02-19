@@ -29,14 +29,14 @@ _load_dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".e
 load_dotenv(dotenv_path=_load_dotenv_path)
 
 from agent import run_healing_agent, format_branch_name  # noqa: E402
-from auth import require_auth  # noqa: E402
+from auth import require_auth, github_oauth_start, github_oauth_callback  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # App initialisation
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
 
-# CORS — allow every origin for local/hackathon use; allow Authorization for Firebase token.
+# CORS — allow every origin for local/hackathon use; allow Authorization for JWT.
 # In production, replace "*" with your specific frontend domain(s).
 CORS(app, resources={r"/api/*": {
     "origins": os.getenv("ALLOWED_ORIGINS", "*"),
@@ -126,12 +126,24 @@ def _commit_results_json(repo_path: str, formatted_branch: str, payload: dict) -
 
 
 # ---------------------------------------------------------------------------
-# Auth (Firebase) — frontend signs in with Firebase; backend only verifies token
+# Auth (GitHub OAuth via backend) — no Firebase
 # ---------------------------------------------------------------------------
+@app.route("/api/auth/github", methods=["GET"])
+def auth_github_start():
+    """Redirect to GitHub OAuth. Frontend links here for 'Login with GitHub'."""
+    return github_oauth_start()
+
+
+@app.route("/api/auth/github/callback", methods=["GET"])
+def auth_github_callback():
+    """GitHub redirects here with code; we exchange for token and redirect to frontend with JWT."""
+    return github_oauth_callback()
+
+
 @app.route("/api/auth/me", methods=["GET"])
 @require_auth
 def auth_me():
-    """Return current user from Firebase ID token (Authorization: Bearer <id_token>)."""
+    """Return current user from JWT (Authorization: Bearer <token>)."""
     return jsonify({"user": request.current_user}), 200
 
 
@@ -155,7 +167,7 @@ def health_check():
 @require_auth
 def analyze():
     """
-    Trigger the autonomous healing pipeline. Requires Authorization: Bearer <firebase_id_token>.
+    Trigger the autonomous healing pipeline. Requires Authorization: Bearer <jwt> (from GitHub OAuth).
 
     Expected JSON body:
     ┌───────────────────────────────────────────────────────────┐

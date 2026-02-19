@@ -1,85 +1,84 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { onAuthStateChanged, signOut as firebaseSignOut, getRedirectResult } from 'firebase/auth';
-import { signInWithRedirect, GithubAuthProvider } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-const GITHUB_TOKEN_KEY = 'velo_github_access_token';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const TOKEN_KEY = 'velo_jwt';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [githubAccessToken, setGitHubAccessTokenState] = useState(() => {
+  const [token, setTokenState] = useState(() => {
     try {
-      return sessionStorage.getItem(GITHUB_TOKEN_KEY) || null;
+      return sessionStorage.getItem(TOKEN_KEY) || null;
     } catch {
       return null;
     }
   });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const unsubRef = useRef(null);
+  const setToken = useCallback((t) => {
+    setTokenState(t);
+    try {
+      if (t) sessionStorage.setItem(TOKEN_KEY, t);
+      else sessionStorage.removeItem(TOKEN_KEY);
+    } catch (_) {}
+  }, []);
+
   useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return () => {};
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get('token');
+    if (tokenFromUrl) {
+      setToken(tokenFromUrl);
+      const url = window.location.pathname + window.location.hash || '/';
+      window.history.replaceState({}, '', url);
     }
-    unsubRef.current = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (!u) {
-        setGitHubAccessTokenState(null);
-        try {
-          sessionStorage.removeItem(GITHUB_TOKEN_KEY);
-        } catch (_) {}
-      }
+  }, [setToken]);
+
+  useEffect(() => {
+    if (!token) {
+      setUser(null);
       setLoading(false);
-    });
-    getRedirectResult(auth)
-      .then((result) => {
-        if (!result) return;
-        const credential = GithubAuthProvider.credentialFromResult(result);
-        const token = credential?.accessToken || null;
-        if (token) {
-          setGitHubAccessTokenState(token);
-          try {
-            sessionStorage.setItem(GITHUB_TOKEN_KEY, token);
-          } catch (_) {}
-        }
+      return;
+    }
+    let cancelled = false;
+    fetch(`${API_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) return res.json();
+        setToken(null);
+        return null;
       })
-      .catch(() => {});
-    return () => {
-      unsubRef.current?.();
-    };
-  }, []);
+      .then((data) => {
+        if (cancelled || !data) return;
+        setUser(data.user);
+      })
+      .catch(() => {
+        if (!cancelled) setToken(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [token, setToken]);
 
-  const signInWithGitHub = useCallback(async () => {
-    if (!auth) throw new Error('Firebase not configured');
-    const provider = new GithubAuthProvider();
-    provider.addScope('repo');
-    await signInWithRedirect(auth, provider);
-  }, []);
-
-  const signOut = useCallback(async () => {
-    if (auth) await firebaseSignOut(auth);
-  }, []);
+  const signOut = useCallback(() => {
+    setToken(null);
+    setUser(null);
+  }, [setToken]);
 
   const getIdToken = useCallback(async () => {
-    if (!auth || !user) return null;
-    try {
-      return await user.getIdToken(true);
-    } catch {
-      return null;
-    }
-  }, [user]);
+    return token;
+  }, [token]);
 
   const value = {
     user,
     loading,
+    token,
     getIdToken,
-    githubAccessToken,
-    signInWithGitHub,
     signOut,
-    isFirebaseConfigured: !!auth,
+    loginUrl: `${API_URL}/api/auth/github`,
   };
   return (
     <AuthContext.Provider value={value}>

@@ -1,151 +1,184 @@
 """
-auth.py — Firebase Authentication for Velo API.
+auth.py — GitHub OAuth handled by the backend.
 
-The frontend signs in with Firebase (e.g. signInWithEmailAndPassword) and sends
-the Firebase ID token in the Authorization header. This module verifies the
-token using the Firebase Admin SDK and exposes require_auth for protected routes.
-
-No backend register/login — Firebase handles those on the client.
+Flow:
+  GET /api/auth/github     → redirect to GitHub
+  GET /api/auth/github/callback?code=...&state=... → exchange code, issue JWT, redirect to frontend with ?token=...
+Protected routes expect: Authorization: Bearer <jwt>
 """
 
-import json
 import os
+import secrets
 import logging
+import time
 from functools import wraps
+from urllib.parse import urlencode
 
-from flask import request, jsonify
+import requests
+from flask import request, jsonify, redirect
 
 logger = logging.getLogger("velo.auth")
 
-# Lazy-initialized Firebase app
-_firebase_app = None
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "").strip()
+GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "").strip()
+FRONTEND_URL = (os.getenv("FRONTEND_URL", "").strip() or "http://localhost:5173").rstrip("/")
+JWT_SECRET = os.getenv("JWT_SECRET", "").strip() or "velo-dev-secret-change-in-production"
+JWT_EXPIRY_SECONDS = int(os.getenv("JWT_EXPIRY_SECONDS", "86400"))  # 24h
+
+GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
+GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+GITHUB_USER_URL = "https://api.github.com/user"
 
 
-def _init_firebase():
-    """Initialize Firebase Admin SDK from env. Idempotent."""
-    global _firebase_app
-    if _firebase_app is not None:
-        return _firebase_app
-
+def _load_jwt():
     try:
-        import firebase_admin
-        from firebase_admin import credentials
-        _firebase_app = firebase_admin.get_app()
-        logger.info("Using existing Firebase app.")
-        return _firebase_app
-    except ValueError:
-        pass
+        import jwt as pyjwt
+        return pyjwt
     except ImportError:
-        logger.warning("firebase-admin not installed; auth will return 503.")
         return None
 
-    # Ensure .env is loaded from this package's directory (in case app was run from another cwd)
-    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-    if os.path.isfile(_env_path):
-        try:
-            from dotenv import load_dotenv
-            load_dotenv(dotenv_path=_env_path)
-        except ImportError:
-            pass
 
-    path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "").strip()
-    json_str = (os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON") or "").strip()
+def _issue_jwt(user: dict) -> str:
+    """Build JWT with user id, login, email."""
+    jwt_mod = _load_jwt()
+    if not jwt_mod:
+        raise RuntimeError("PyJWT not installed")
+    payload = {
+        "sub": str(user.get("id", "")),
+        "login": user.get("login", ""),
+        "email": user.get("email") or "",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + JWT_EXPIRY_SECONDS,
+    }
+    return jwt_mod.encode(payload, JWT_SECRET, algorithm="HS256")
 
-    # Default: same directory as this module (backend/)
-    if not path and not json_str:
-        _default_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "firebase-service-account.json",
-        )
-        if os.path.isfile(_default_path):
-            path = _default_path
 
-    if path and os.path.isfile(path):
-        cred = credentials.Certificate(path)
-    elif json_str:
-        try:
-            cred = credentials.Certificate(json.loads(json_str))
-        except json.JSONDecodeError as e:
-            logger.error("FIREBASE_SERVICE_ACCOUNT_JSON is invalid JSON: %s", e)
-            return None
-    else:
-        logger.warning(
-            "Firebase not configured: set FIREBASE_SERVICE_ACCOUNT_PATH or "
-            "FIREBASE_SERVICE_ACCOUNT_JSON (env loaded from %s)",
-            _env_path,
-        )
+def _verify_jwt(token: str) -> dict | None:
+    """Verify JWT and return payload or None."""
+    jwt_mod = _load_jwt()
+    if not jwt_mod or not token:
         return None
-
     try:
-        _firebase_app = firebase_admin.initialize_app(cred)
-        logger.info("Firebase Admin SDK initialized.")
-    except Exception as e:
-        logger.exception("Firebase init failed: %s", e)
-        _firebase_app = None
-        return None
-
-    return _firebase_app
-
-
-def verify_firebase_token(id_token: str) -> dict | None:
-    """
-    Verify a Firebase ID token and return decoded claims (uid, email, etc.)
-    or None if invalid/expired.
-    """
-    app = _init_firebase()
-    if not app:
-        return None
-
-    from firebase_admin import auth as firebase_auth
-
-    try:
-        decoded = firebase_auth.verify_id_token(id_token)
-        return decoded
-    except Exception as e:
-        logger.debug("Token verification failed: %s", e)
+        return jwt_mod.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except Exception:
         return None
 
 
 def get_current_user() -> dict | None:
-    """
-    Read Authorization: Bearer <token> from the current request, verify with
-    Firebase, and return a user dict { "id": uid, "email": email } or None.
-    """
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    """Read Authorization: Bearer <jwt> and return user dict or None."""
+    auth = request.headers.get("Authorization")
+    if not auth or not auth.startswith("Bearer "):
         return None
-    token = auth_header[7:].strip()
-    if not token:
+    token = auth[7:].strip()
+    payload = _verify_jwt(token)
+    if not payload:
         return None
-
-    decoded = verify_firebase_token(token)
-    if not decoded:
-        return None
-
-    uid = decoded.get("uid") or decoded.get("sub")
-    email = (decoded.get("email") or "").strip() or None
-    return {"id": uid, "email": email}
+    return {
+        "id": payload.get("sub"),
+        "login": payload.get("login"),
+        "email": (payload.get("email") or "").strip() or None,
+    }
 
 
 def require_auth(f):
-    """
-    Decorator: require valid Firebase ID token. Sets request.current_user and
-    returns 401 if missing/invalid, or 503 if Firebase is not configured.
-    """
+    """Decorator: require valid JWT. Sets request.current_user; 401 if missing/invalid."""
     @wraps(f)
     def wrapped(*args, **kwargs):
-        app = _init_firebase()
-        if not app:
-            return (
-                jsonify({
-                    "error": "Authentication is not configured (Firebase). "
-                    "Set FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_SERVICE_ACCOUNT_JSON.",
-                }),
-                503,
-            )
         user = get_current_user()
         if not user:
             return jsonify({"error": "Missing or invalid authorization token"}), 401
         request.current_user = user
         return f(*args, **kwargs)
     return wrapped
+
+
+def github_oauth_start():
+    """Redirect to GitHub OAuth. Call from GET /api/auth/github."""
+    if not GITHUB_CLIENT_ID or not GITHUB_CLIENT_SECRET:
+        return redirect(FRONTEND_URL + "/auth?error=not_configured", code=302)
+    state = secrets.token_urlsafe(32)
+    params = {
+        "client_id": GITHUB_CLIENT_ID,
+        "redirect_uri": request.url_root.rstrip("/") + "/api/auth/github/callback",
+        "scope": "repo user:email",
+        "state": state,
+    }
+    url = GITHUB_AUTHORIZE_URL + "?" + urlencode(params)
+    resp = redirect(url, code=302)
+    resp.set_cookie("oauth_state", state, max_age=600, httponly=True, samesite="Lax")
+    return resp
+
+
+def github_oauth_callback():
+    """Exchange code for token, fetch user, issue JWT, redirect to frontend. Call from GET /api/auth/github/callback."""
+    state = request.args.get("state")
+    code = request.args.get("code")
+    if not state or not code:
+        return redirect(FRONTEND_URL + "/auth?error=missing_params", code=302)
+    cookie_state = request.cookies.get("oauth_state")
+    if not cookie_state or not secrets.compare_digest(state, cookie_state):
+        return redirect(FRONTEND_URL + "/auth?error=invalid_state", code=302)
+
+    # Exchange code for access_token
+    token_resp = requests.post(
+        GITHUB_TOKEN_URL,
+        headers={"Accept": "application/json"},
+        data={
+            "client_id": GITHUB_CLIENT_ID,
+            "client_secret": GITHUB_CLIENT_SECRET,
+            "code": code,
+            "redirect_uri": request.url_root.rstrip("/") + "/api/auth/github/callback",
+            "state": state,
+        },
+        timeout=15,
+    )
+    token_resp.raise_for_status()
+    token_data = token_resp.json()
+    access_token = token_data.get("access_token")
+    if not access_token:
+        logger.warning("GitHub token response: no access_token")
+        return redirect(FRONTEND_URL + "/auth?error=no_token", code=302)
+
+    # Fetch GitHub user
+    user_resp = requests.get(
+        GITHUB_USER_URL,
+        headers={"Authorization": f"Bearer {access_token}", "Accept": "application/vnd.github.v3+json"},
+        timeout=10,
+    )
+    user_resp.raise_for_status()
+    gh_user = user_resp.json()
+    user = {
+        "id": gh_user.get("id"),
+        "login": gh_user.get("login", ""),
+        "email": (gh_user.get("email") or "").strip(),
+        "avatar_url": gh_user.get("avatar_url"),
+    }
+    if not user["email"]:
+        # Try emails API
+        try:
+            em_resp = requests.get(
+                "https://api.github.com/user/emails",
+                headers={"Authorization": f"Bearer {access_token}", "Accept": "application/vnd.github.v3+json"},
+                timeout=5,
+            )
+            if em_resp.ok:
+                for e in em_resp.json():
+                    if e.get("primary"):
+                        user["email"] = (e.get("email") or "").strip()
+                        break
+        except Exception:
+            pass
+
+    try:
+        jwt_token = _issue_jwt(user)
+    except Exception as e:
+        logger.exception("JWT issue failed: %s", e)
+        return redirect(FRONTEND_URL + "/auth?error=server_error", code=302)
+
+    redirect_url = FRONTEND_URL + "/?token=" + jwt_token
+    resp = redirect(redirect_url, code=302)
+    resp.delete_cookie("oauth_state")
+    return resp
