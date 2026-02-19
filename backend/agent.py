@@ -262,73 +262,119 @@ def node_sandbox_tester(state: AgentState) -> AgentState:
     logger.info("[Node 1] Using Docker image: %s", docker_image)
 
     # -----------------------------------------------------------------------
-    # DOCKER SANDBOXED EXECUTION
-    # The docker Python SDK (not subprocess) is used exclusively.
+    # DOCKER SANDBOXED EXECUTION (primary)
+    # Falls back to direct subprocess execution when Docker is unavailable.
     # -----------------------------------------------------------------------
     test_logs  = ""
     exit_code  = 1
     container  = None
+    docker_available = True
 
+    # Probe Docker availability before committing to container execution
     try:
-        client = docker.from_env()
+        _probe_client = docker.from_env()
+        _probe_client.ping()
+    except Exception:
+        docker_available = False
+        logger.warning("[Node 1] Docker unavailable — falling back to direct subprocess execution.")
 
-        logger.info("[Node 1] Pulling image and starting container …")
+    if docker_available:
+        try:
+            client = docker.from_env()
+            logger.info("[Node 1] Pulling image and starting container …")
 
-        # detach=True → returns a Container object immediately so we can
-        # call .wait() with a timeout and .logs() separately.
-        container = client.containers.run(
-            image       = docker_image,
-            command     = test_cmd,
-            volumes     = {
-                repo_path: {
-                    "bind": "/repo",
-                    "mode": "rw",   # rw so pytest can write .pytest_cache etc.
-                }
-            },
-            working_dir     = "/repo",
-            detach          = True,
-            remove          = False,     # We remove manually AFTER log capture
-            stdout          = True,
-            stderr          = True,
-            mem_limit       = "512m",    # Prevent runaway memory usage
-            cpu_period      = 100_000,
-            cpu_quota       = 50_000,    # Cap at 50 % of one CPU core
-        )
+            container = client.containers.run(
+                image       = docker_image,
+                command     = test_cmd,
+                volumes     = {
+                    repo_path: {
+                        "bind": "/repo",
+                        "mode": "rw",
+                    }
+                },
+                working_dir     = "/repo",
+                detach          = True,
+                remove          = False,
+                stdout          = True,
+                stderr          = True,
+                mem_limit       = "512m",
+                cpu_period      = 100_000,
+                cpu_quota       = 50_000,
+            )
 
-        logger.info("[Node 1] Container %s started — waiting for tests …", container.short_id)
+            logger.info("[Node 1] Container %s started — waiting for tests …", container.short_id)
+            wait_result = container.wait(timeout=180)
+            exit_code   = wait_result.get("StatusCode", 1)
+            test_logs   = container.logs(stdout=True, stderr=True).decode("utf-8", errors="replace")
+            logger.info("[Node 1] Container exited with code %d.", exit_code)
 
-        # Block until the container exits (max 180 s to allow pip installs)
-        wait_result = container.wait(timeout=180)
-        exit_code   = wait_result.get("StatusCode", 1)
+        except docker.errors.ImageNotFound as exc:
+            test_logs = f"Docker image not found: {exc}"
+            logger.error("[Node 1] %s", test_logs)
 
-        # Capture combined stdout + stderr
-        test_logs = container.logs(stdout=True, stderr=True).decode("utf-8", errors="replace")
+        except docker.errors.APIError as exc:
+            test_logs = f"Docker API error: {exc}"
+            logger.error("[Node 1] %s", test_logs)
 
-        logger.info("[Node 1] Container exited with code %d.", exit_code)
+        except Exception as exc:
+            test_logs = f"Unexpected error during Docker execution: {exc}"
+            logger.exception("[Node 1] Unexpected error.")
 
-    except docker.errors.ImageNotFound as exc:
-        test_logs = f"Docker image not found: {exc}"
-        logger.error("[Node 1] %s", test_logs)
+        finally:
+            if container is not None:
+                try:
+                    container.remove(force=True)
+                    logger.info("[Node 1] Container %s removed successfully.", container.short_id)
+                except Exception as cleanup_err:
+                    logger.warning("[Node 1] Container cleanup warning: %s", cleanup_err)
 
-    except docker.errors.APIError as exc:
-        test_logs = f"Docker API error: {exc}"
-        logger.error("[Node 1] %s", test_logs)
+    else:
+        # -------------------------------------------------------------------
+        # SUBPROCESS FALLBACK — used when Docker Desktop is not running.
+        # Runs pytest (Python) or npm test (JS/TS) directly on the host.
+        # -------------------------------------------------------------------
+        import subprocess
+        import sys
 
-    except Exception as exc:
-        test_logs = f"Unexpected error during Docker execution: {exc}"
-        logger.exception("[Node 1] Unexpected error.")
+        logger.info("[Node 1] Subprocess fallback: running tests directly on host.")
 
-    finally:
-        # ---------------------------------------------------------------
-        # CONTAINER DESTRUCTION — always executes, even on exceptions.
-        # This guarantees no dangling containers leak to the host.
-        # ---------------------------------------------------------------
-        if container is not None:
-            try:
-                container.remove(force=True)
-                logger.info("[Node 1] Container %s removed successfully.", container.short_id)
-            except Exception as cleanup_err:
-                logger.warning("[Node 1] Container cleanup warning: %s", cleanup_err)
+        try:
+            if has_python:
+                # Install repo requirements if present
+                req_file = os.path.join(repo_path, "requirements.txt")
+                if os.path.isfile(req_file):
+                    subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "-r", req_file,
+                         "--quiet", "--no-cache-dir"],
+                        capture_output=True, timeout=120,
+                    )
+                # Install pytest itself
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "pytest",
+                     "--quiet", "--no-cache-dir"],
+                    capture_output=True, timeout=60,
+                )
+                result = subprocess.run(
+                    [sys.executable, "-m", "pytest", repo_path, "--tb=short", "-v"],
+                    capture_output=True, text=True, timeout=120, cwd=repo_path,
+                )
+            else:
+                result = subprocess.run(
+                    ["npm", "test", "--", "--watchAll=false"],
+                    capture_output=True, text=True, timeout=120, cwd=repo_path,
+                    shell=True,
+                )
+
+            exit_code = result.returncode
+            test_logs = (result.stdout or "") + (result.stderr or "")
+            logger.info("[Node 1] Subprocess tests exited with code %d.", exit_code)
+
+        except subprocess.TimeoutExpired:
+            test_logs = "Test execution timed out after 120 seconds."
+            logger.error("[Node 1] %s", test_logs)
+        except Exception as exc:
+            test_logs = f"Subprocess execution error: {exc}"
+            logger.exception("[Node 1] Subprocess fallback error.")
 
     tests_passed = (exit_code == 0)
     logger.info("[Node 1] Tests %s.", "PASSED ✅" if tests_passed else "FAILED ❌")
