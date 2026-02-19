@@ -2,37 +2,165 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --cyber-black: #050507;
+  --cyber-charcoal: #0f111a;
+  --neon-violet: #8b5cf6;
+  --neon-cyan: #06b6d4;
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(15, 17, 26, 0.6);
+  --bg-dark: #02040a;
+  --card-bg: #0a0e17;
+  --border-muted: #1e293b;
+  --primary: #4f46e5;
+  --primary-glow: #6366f1;
+  --success: #10b981;
+  --error: #ef4444;
+  --warning: #f59e0b;
+  --cyan-ops: #06b6d4;
+}
+
 body {
-  background: #0a0a0f;
+  background-color: var(--cyber-black);
   color: #e2e8f0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #0f0f1a; }
-::-webkit-scrollbar-thumb { background: #2d2d4e; border-radius: 3px; }
+.font-mono, code, pre { font-family: 'JetBrains Mono', monospace; }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes ping { 75%,100% { transform: scale(2); opacity: 0; } }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
-@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+/* ── Custom CSS from Stitch designs ── */
 
-.fade-in { animation: fadeInUp 0.45s ease-out forwards; }
-.fade-in-2 { animation: fadeInUp 0.45s ease-out 0.1s both; }
-.fade-in-3 { animation: fadeInUp 0.45s ease-out 0.2s both; }
-.fade-in-4 { animation: fadeInUp 0.45s ease-out 0.3s both; }
-
-.skeleton {
-  background: linear-gradient(90deg, #1a1a2e 25%, #22223a 50%, #1a1a2e 75%);
-  background-size: 400px 100%;
-  animation: shimmer 1.6s infinite linear;
-  border-radius: 4px;
+.glass-panel {
+  background: rgba(13, 13, 31, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
 }
 
-.spin { animation: spin 0.9s linear infinite; }
-.spin-rev { animation: spin 1.4s linear infinite reverse; }
-.blink { animation: blink 1s step-start infinite; }
+.glass-panel-dark {
+  background: rgba(10, 14, 23, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.cyber-grid {
+  background-image: radial-gradient(circle, rgba(139, 92, 246, 0.1) 1px, transparent 1px);
+  background-size: 30px 30px;
+  mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+}
+
+.text-neon-gradient {
+  background: linear-gradient(to right, #8b5cf6, #22d3ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glow-button {
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+  transition: all 0.3s ease;
+}
+.glow-button:hover { box-shadow: 0 0 25px rgba(139, 92, 246, 0.5); }
+.glow-button:active { box-shadow: 0 0 5px rgba(139, 92, 246, 0.5); }
+
+.timeline-line {
+  background: linear-gradient(
+    to bottom,
+    rgba(139, 92, 246, 0.1) 0%,
+    rgba(139, 92, 246, 0.8) 50%,
+    rgba(34, 211, 238, 0.8) 100%
+  );
+}
+
+.scanlines {
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,0) 50%,
+    rgba(0,0,0,0.2) 50%,
+    rgba(0,0,0,0.2)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+}
+
+.cyber-border::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(45deg, rgba(79, 70, 229, 0.5), transparent, rgba(16, 185, 129, 0.3));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #0a0e17; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
+
+/* ── Animations ── */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; box-shadow: 0 0 10px rgba(139, 92, 246, 0.3); }
+  50% { opacity: 1; box-shadow: 0 0 25px rgba(6, 182, 212, 0.5); }
+}
+@keyframes scanline-anim {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes node-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(139, 92, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
+@keyframes wave-dash {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes pulsing-dot {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 5px #10b981; }
+  50% { opacity: .5; transform: scale(1.2); box-shadow: 0 0 15px #10b981; }
+}
+@keyframes blinking-cursor {
+  from, to { border-color: transparent; }
+  50% { border-color: #4f46e5; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in {
+  from { width: 0; }
+  to { width: var(--bar-w, 100%); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-node-pulse-1 { animation: node-pulse 4s infinite 0s; }
+.animate-node-pulse-2 { animation: node-pulse 4s infinite 1.33s; }
+.animate-node-pulse-3 { animation: node-pulse 4s infinite 2.66s; }
+.animate-pulse-glow { animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-hud-outer { animation: spin 10s linear infinite; transform-origin: center; }
+.animate-hud-inner { animation: spin-reverse 15s linear infinite; transform-origin: center; }
+.animate-pulsing-dot { animation: pulsing-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-blinking { animation: blinking-cursor 1s step-end infinite; border-right: 2px solid; }
+.animate-wave { stroke-dasharray: 100; stroke-dashoffset: 100; animation: wave-dash 3s linear infinite; }
+.fade-up { animation: fadeUp 0.45s ease-out forwards; }
+.fade-up-2 { animation: fadeUp 0.45s ease-out 0.1s both; }
+.fade-up-3 { animation: fadeUp 0.45s ease-out 0.2s both; }
