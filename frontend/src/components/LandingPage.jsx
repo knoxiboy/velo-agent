@@ -2,11 +2,33 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const DEMO = {
-  repoUrl:    'https://github.com/oyelurker/velo-agent',
-  teamName:   'Vakratund',
-  leaderName: 'Tejas Kumar Punyap',
-};
+const DEMO_PRESETS = [
+  {
+    label:      'Tejas',
+    tag:        'TK',
+    color:      '#6366f1',
+    highlight:  true,
+    repoUrl:    'https://github.com/oyelurker/velo-agent',
+    teamName:   'Vakratund',
+    leaderName: 'Tejas Kumar Punyap',
+  },
+  {
+    label:      'Knoxiboy',
+    tag:        'KB',
+    color:      '#60a5fa',
+    repoUrl:    'https://github.com/knoxiboy/velo_test_repo',
+    teamName:   'Vakratund',
+    leaderName: 'Knoxiboy',
+  },
+  {
+    label:      'Oyelurker',
+    tag:        'OY',
+    color:      '#f59e0b',
+    repoUrl:    'https://github.com/oyelurker/velo-agent',
+    teamName:   'Vakratund',
+    leaderName: 'Oyelurker',
+  },
+];
 
 const PIPELINE_STEPS = [
   {
@@ -54,10 +76,10 @@ export default function LandingPage({ onSubmit, loading }) {
     onSubmit({ repo_url: repoUrl, team_name: teamName, leader_name: leaderName });
   };
 
-  const fillDemo = () => {
-    setRepoUrl(DEMO.repoUrl);
-    setTeamName(DEMO.teamName);
-    setLeaderName(DEMO.leaderName);
+  const fillDemo = (preset = DEMO_PRESETS[0]) => {
+    setRepoUrl(preset.repoUrl);
+    setTeamName(preset.teamName);
+    setLeaderName(preset.leaderName);
   };
 
   return (
@@ -208,18 +230,42 @@ export default function LandingPage({ onSubmit, loading }) {
           <div className="fade-in-2">
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {/* Card header */}
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Analyze Repository</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Enter your GitHub repo to begin</div>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>Analyze Repository</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Enter your GitHub repo to begin</div>
+                  </div>
                 </div>
-                <button
-                  onClick={fillDemo}
-                  className="btn-ghost"
-                  style={{ fontSize: 12, padding: '6px 12px' }}
-                >
-                  Try Demo
-                </button>
+                {/* Demo presets */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-3)', alignSelf: 'center', marginRight: 2 }}>Try demo:</span>
+                  {DEMO_PRESETS.map(preset => (
+                    <button
+                      key={preset.label}
+                      onClick={() => fillDemo(preset)}
+                      className="mono"
+                      style={{
+                        padding: preset.highlight ? '5px 12px' : '4px 10px',
+                        borderRadius: 6, fontSize: preset.highlight ? 11 : 10,
+                        fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer',
+                        background: preset.highlight ? preset.color : preset.color + '15',
+                        color:      preset.highlight ? '#fff'       : preset.color,
+                        border: `1px solid ${preset.highlight ? preset.color : preset.color + '40'}`,
+                        boxShadow: preset.highlight ? `0 0 10px ${preset.color}55` : 'none',
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.opacity = '0.85';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.opacity = '1';
+                      }}
+                    >
+                      {preset.highlight ? '★ ' : ''}{preset.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Form body */}
