@@ -45,11 +45,13 @@ LangGraph orchestration: 3-node autonomous healing pipeline.
 └──────────────────────────────────────────────────────────────────┘
 """
 
+import difflib
 import fnmatch
 import json
 import logging
 import os
 import re
+import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -62,6 +64,28 @@ from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
 load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Thread-local SSE emit — set by run_healing_agent when a streaming caller
+# provides a callback; otherwise no-ops so non-streaming callers are unaffected
+# ---------------------------------------------------------------------------
+_emit_ctx = threading.local()
+
+
+def _emit_event(event: dict) -> None:
+    """Fire a live event via the thread-local callback (if any). Never raises."""
+    fn = getattr(_emit_ctx, "fn", None)
+    if fn is not None:
+        try:
+            fn(event)
+        except Exception:
+            pass
+
+
+def _log(tag: str, message: str) -> None:
+    """Emit a log-type event and also write to the Python logger."""
+    _emit_event({"type": "log", "tag": tag, "message": message})
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -138,6 +162,7 @@ class AgentState(TypedDict):
     # Node 3 outputs
     branch_pushed:      Optional[str]  # Name of the remote branch that was pushed
     commit_sha:         Optional[str]  # SHA of the healing commit
+    diffs:              Dict[str, Any] # {rel_path: {"unified_diff": str}} per fixed file
 
     # Shared
     results:            Dict[str, Any] # Accumulated result payload
@@ -188,6 +213,8 @@ def node_sandbox_tester(state: AgentState) -> AgentState:
     logger.info("=" * 60)
     logger.info("NODE 1 — SANDBOX TESTER")
     logger.info("=" * 60)
+    _log("INFO", "── Node 1: Sandbox Tester ──")
+    _log("INFO", "Scanning repository for test files...")
 
     repo_path = os.path.abspath(state["repo_path"])
 
@@ -216,9 +243,11 @@ def node_sandbox_tester(state: AgentState) -> AgentState:
         len(discovered_test_files),
         discovered_test_files,
     )
+    _log("INFO", f"Discovered {len(discovered_test_files)} test file(s) via dynamic scan")
 
     if not discovered_test_files:
         logger.warning("[Node 1] No test files found — skipping container execution.")
+        _log("ERROR", "No test files found in repository")
         return {
             **state,
             "test_files":   [],
@@ -261,6 +290,7 @@ def node_sandbox_tester(state: AgentState) -> AgentState:
         )
 
     logger.info("[Node 1] Using Docker image: %s", docker_image)
+    _log("INFO", f"Starting Docker sandbox ({docker_image})...")
 
     # -----------------------------------------------------------------------
     # DOCKER SANDBOXED EXECUTION (primary)
@@ -379,6 +409,10 @@ def node_sandbox_tester(state: AgentState) -> AgentState:
 
     tests_passed = (exit_code == 0)
     logger.info("[Node 1] Tests %s.", "PASSED ✅" if tests_passed else "FAILED ❌")
+    if tests_passed:
+        _log("PASS", "All tests passing ✓")
+    else:
+        _log("ERROR", "Test suite failed — passing logs to LLM Solver")
 
     return {
         **state,
@@ -407,6 +441,7 @@ def node_llm_solver(state: AgentState) -> AgentState:
     logger.info("=" * 60)
     logger.info("NODE 2 — LLM SOLVER")
     logger.info("=" * 60)
+    _log("INFO", "── Node 2: LLM Solver ──")
 
     # If tests passed there are no bugs to fix — short-circuit
     if state.get("tests_passed"):
@@ -415,6 +450,7 @@ def node_llm_solver(state: AgentState) -> AgentState:
 
     test_logs  = state["test_logs"]
     repo_path  = state["repo_path"]
+    _log("AGENT", f"Sending {len(test_logs):,} chars of logs to Gemini 2.5 Flash...")
 
     # Collect relevant source file contents mentioned in the logs
     source_context = _collect_source_context(repo_path, test_logs)
@@ -484,6 +520,7 @@ Now output Section 1 bug lines followed by the Section 2 JSON block:"""
 
     except Exception as exc:
         logger.exception("[Node 2] Gemini API call failed.")
+        _log("ERROR", f"Gemini API call failed: {exc}")
         return {**state, "bug_reports": [], "fixes": {}, "error": str(exc)}
 
     # -----------------------------------------------------------------------
@@ -508,6 +545,10 @@ Now output Section 1 bug lines followed by the Section 2 JSON block:"""
         )
         bug_reports.append(formatted)
         logger.info("[Node 2] Bug captured: %s", formatted)
+
+    _log("AGENT", f"Analysis complete — {len(bug_reports)} bug(s) identified")
+    for br in bug_reports:
+        _log("BUG", br)
 
     if not bug_reports:
         logger.warning("[Node 2] LLM output contained no parseable bug-report lines.")
@@ -583,6 +624,7 @@ def node_gitops(state: AgentState) -> AgentState:
     logger.info("=" * 60)
     logger.info("NODE 3 — GITOPS")
     logger.info("=" * 60)
+    _log("INFO", "── Node 3: GitOps ──")
 
     repo_path        = state["repo_path"]
     fixes            = state.get("fixes", {})
@@ -626,6 +668,10 @@ def node_gitops(state: AgentState) -> AgentState:
         logger.error("[Node 3] %s", msg)
         return {**state, "error": msg}
 
+    # Initialize outside the try so except blocks can always reference it,
+    # even if the error occurs after diffs were captured but before push.
+    file_diffs: Dict[str, Any] = {}
+
     try:
         # -------------------------------------------------------------------
         # GUARD 3 — Confirm we are NOT currently on main/master before branching
@@ -652,12 +698,36 @@ def node_gitops(state: AgentState) -> AgentState:
             logger.info("[Node 3] Created and checked out new branch: %s", formatted_branch)
 
         # -------------------------------------------------------------------
-        # APPLY FIXES TO DISK
+        # APPLY FIXES TO DISK — capture before/after diff for each file
         # fixes = {relative_path: full_corrected_content}
         # -------------------------------------------------------------------
         applied: List[str] = []
+        _log("PATCH", f"Applying {len(fixes)} fix(es) to disk...")
+
         for rel_path, corrected_content in fixes.items():
             target = os.path.join(repo_path, rel_path)
+
+            # Capture original before overwriting
+            original_content = ""
+            if os.path.isfile(target):
+                try:
+                    with open(target, "r", encoding="utf-8", errors="replace") as fh:
+                        original_content = fh.read()
+                except OSError:
+                    pass
+
+            # Compute unified diff (cap at 120 lines to keep payload small)
+            diff_lines = list(difflib.unified_diff(
+                original_content.splitlines(keepends=True),
+                corrected_content.splitlines(keepends=True),
+                fromfile=f"a/{rel_path}",
+                tofile=f"b/{rel_path}",
+                n=3,
+            ))
+            file_diffs[rel_path] = {
+                "unified_diff": "".join(diff_lines[:120]),
+            }
+
             os.makedirs(os.path.dirname(target), exist_ok=True)
             with open(target, "w", encoding="utf-8") as fh:
                 fh.write(corrected_content)
@@ -691,6 +761,7 @@ def node_gitops(state: AgentState) -> AgentState:
             commit = repo.index.commit(commit_message)
             logger.info("[Node 3] Committing as: git global config identity")
         logger.info("[Node 3] Commit created: %s — %s", commit.hexsha[:10], commit_message)
+        _log("PATCH", f"Committed [AI-AGENT] fixes → {commit.hexsha[:10]}")
 
         # -------------------------------------------------------------------
         # PUSH — ONLY the healing branch, never main/master
@@ -704,11 +775,13 @@ def node_gitops(state: AgentState) -> AgentState:
             logger.info("[Node 3] Push result [%s]: %s", formatted_branch, info.summary.strip())
 
         logger.info("[Node 3] Successfully pushed branch '%s' to remote.", formatted_branch)
+        _log("INFO", f"Pushed branch {formatted_branch} to remote ✓")
 
         return {
             **state,
             "branch_pushed": formatted_branch,
             "commit_sha":    commit.hexsha,
+            "diffs":         file_diffs,
             "results": {
                 **state.get("results", {}),
                 "branch_pushed": formatted_branch,
@@ -720,13 +793,14 @@ def node_gitops(state: AgentState) -> AgentState:
 
     except git.GitCommandError as exc:
         logger.exception("[Node 3] Git command failed.")
-        return {**state, "error": str(exc)}
+        _log("ERROR", f"Push failed (403/auth) — fixes applied locally, branch not pushed")
+        return {**state, "diffs": file_diffs, "error": str(exc)}
     except OSError as exc:
         logger.exception("[Node 3] File I/O error while applying fix.")
-        return {**state, "error": str(exc)}
+        return {**state, "diffs": file_diffs, "error": str(exc)}
     except Exception as exc:
         logger.exception("[Node 3] Unexpected GitOps error.")
-        return {**state, "error": str(exc)}
+        return {**state, "diffs": file_diffs, "error": str(exc)}
 
 
 # ===========================================================================
@@ -760,7 +834,11 @@ def build_agent_graph():
 # PUBLIC ENTRY POINT — called by app.py
 # ===========================================================================
 
-def run_healing_agent(repo_path: str, raw_branch_name: str) -> Dict[str, Any]:
+def run_healing_agent(
+    repo_path: str,
+    raw_branch_name: str,
+    emit=None,
+) -> Dict[str, Any]:
     """
     Kick off the fully autonomous healing pipeline.
 
@@ -771,10 +849,13 @@ def run_healing_agent(repo_path: str, raw_branch_name: str) -> Dict[str, Any]:
     Args:
         repo_path:       Absolute path to the git repo to heal.
         raw_branch_name: Human-readable name from the frontend form input.
+        emit:            Optional callable(event_dict) for live SSE streaming.
+                         When None (default) all _emit_event calls are no-ops.
 
     Returns:
         A results dict that is also written to <repo_path>/results.json.
     """
+    _emit_ctx.fn = emit
     logger.info("▶  Velo autonomous healing started")
     logger.info("   repo_path       : %s", repo_path)
     logger.info("   raw_branch_name : %s", raw_branch_name)
@@ -795,6 +876,7 @@ def run_healing_agent(repo_path: str, raw_branch_name: str) -> Dict[str, Any]:
         "fixes":            {},
         "branch_pushed":    None,
         "commit_sha":       None,
+        "diffs":            {},
         "results": {
             "run_timestamp":  datetime.now(timezone.utc).isoformat(),
             "repo_path":      repo_path,
@@ -804,8 +886,11 @@ def run_healing_agent(repo_path: str, raw_branch_name: str) -> Dict[str, Any]:
     }
 
     # Compile and invoke the LangGraph pipeline
-    agent_graph = build_agent_graph()
-    final_state = agent_graph.invoke(initial_state)
+    try:
+        agent_graph = build_agent_graph()
+        final_state = agent_graph.invoke(initial_state)
+    finally:
+        _emit_ctx.fn = None  # Always clear the emit callback after pipeline
 
     # -----------------------------------------------------------------------
     # RESULTS.JSON — written to the repo root at the end of EVERY run
@@ -821,6 +906,7 @@ def run_healing_agent(repo_path: str, raw_branch_name: str) -> Dict[str, Any]:
         "files_fixed":            list(final_state.get("fixes", {}).keys()),
         "branch_pushed":          final_state.get("branch_pushed"),
         "commit_sha":             final_state.get("commit_sha"),
+        "diffs":                  final_state.get("diffs", {}),
         "error":                  final_state.get("error"),
         "status": (
             "SUCCESS"       if not final_state.get("error") and final_state.get("branch_pushed")
