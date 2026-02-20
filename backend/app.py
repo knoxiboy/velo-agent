@@ -408,143 +408,86 @@ def _run_healing_loop(
     user_token: str = None,
 ) -> dict:
     """
-    Runs the full retry healing loop and returns the shaped response dict.
+    Runs the full continuous healing loop via the agent and returns shaped response dict.
     `emit` is an optional callable(event_dict) for SSE streaming.
     """
     raw_branch_name  = f"{team_name} {leader_name}"
     formatted_branch = format_branch_name(raw_branch_name)
-    start_time       = time.time()
 
     def _e(tag: str, msg: str) -> None:
         if emit:
             emit({"type": "log", "tag": tag, "message": msg})
 
-    timeline:            list = []
-    all_fixes:           list = []
-    all_diffs:           dict = {}
-    total_failures:      int  = 0
-    total_fixes_applied: int  = 0
-    commit_count:        int  = 0
-    final_status:        str  = "FAILED"
-    seen_bug_lines:      set  = set()
+    # The agent runs its own iteration loop internally up to MAX_RETRIES
+    results = run_healing_agent(
+        repo_path=tmp_dir,
+        raw_branch_name=raw_branch_name,
+        emit=emit,
+        max_retries=MAX_RETRIES,
+    )
 
-    for attempt in range(1, MAX_RETRIES + 1):
-        _e("INFO", f"── Iteration {attempt} / {MAX_RETRIES} ──")
-        logger.info("Healing attempt %d / %d", attempt, MAX_RETRIES)
+    # 1. Shape the detailed bug reports into objects for the frontend
+    all_fixes = []
+    seen_bug_lines = set()
 
-        results      = run_healing_agent(
-            repo_path=tmp_dir,
-            raw_branch_name=raw_branch_name,
-            emit=emit,
-        )
-        attempt_ts   = datetime.now(timezone.utc).strftime("%H:%M:%S")
-        tests_passed = results.get("tests_passed", False)
-        bug_reports  = results.get("bug_reports", [])
-        files_fixed  = results.get("files_fixed", [])
+    for br in results.get("bug_reports", []):
+        parsed = _parse_bug_report(br)
+        if parsed and br not in seen_bug_lines:
+            seen_bug_lines.add(br)
+            all_fixes.append({
+                "file":           parsed["file"],
+                "bug_type":       parsed["bug_type"],
+                "line_number":    parsed["line_number"],
+                "commit_message": f"[AI-AGENT] Fix: {parsed['fix_description']}",
+                "status":         "fixed" if parsed["file"] in results.get("files_fixed", []) else "failed",
+                "fix_description": parsed["fix_description"],
+            })
 
-        if results.get("branch_pushed"):
-            commit_count += 1
+    # The timeline returned from agent: {iteration, status, timestamp, failures_in_run, fixes_in_run}
+    timeline = results.get("ci_timeline", [])
 
-        failures_this_run   = len(bug_reports)
-        fixes_this_run      = len(files_fixed)
-        total_failures      = max(total_failures, failures_this_run)
-        total_fixes_applied += fixes_this_run
+    # 2. Re-commit results.json (overwrite agent's local save) and push so judges see it on branch
+    # We pass the full agent payload so it's transparent, augmenting it with frontend expected keys if we want,
+    # but the agent already writes a great generic results.json! Let's just save and push it with formatting.
+    results["fixes"] = all_fixes  # Attach the parsed fixes to the repo's results.json
+    _commit_results_json(tmp_dir, formatted_branch, results)
 
-        # Merge diffs from this iteration
-        all_diffs.update(results.get("diffs", {}))
-
-        timeline.append({
-            "status":          "PASSED" if tests_passed else "FAILED",
-            "timestamp":       attempt_ts,
-            "message": (
-                "All tests passing — pipeline green"
-                if tests_passed
-                else f"{failures_this_run} failure(s) detected, {fixes_this_run} fix(es) applied"
-            ),
-            "failures_in_run": failures_this_run,
-            "fixes_in_run":    fixes_this_run,
-        })
-
-        for br in bug_reports:
-            parsed = _parse_bug_report(br)
-            if parsed and br not in seen_bug_lines:
-                seen_bug_lines.add(br)
-                all_fixes.append({
-                    "file":           parsed["file"],
-                    "bug_type":       parsed["bug_type"],
-                    "line_number":    parsed["line_number"],
-                    "commit_message": f"[AI-AGENT] Fix: {parsed['fix_description']}",
-                    "status":         "fixed" if parsed["file"] in files_fixed else "failed",
-                    "fix_description": parsed["fix_description"],
-                })
-
-        if tests_passed:
-            final_status = "PASSED"
-            logger.info("Tests passing after attempt %d — stopping retries.", attempt)
-            break
-
-        if not bug_reports:
-            logger.info("No bugs reported after attempt %d — nothing left to fix.", attempt)
-            break
-
-    # Commit results.json
-    _commit_results_json(tmp_dir, formatted_branch, {
-        "repo_url":        repo_url,
-        "team_name":       team_name,
-        "leader_name":     leader_name,
-        "branch_name":     formatted_branch,
-        "total_failures":  total_failures,
-        "total_fixes":     total_fixes_applied,
-        "ci_status":       final_status,
-        "iterations_used": len(timeline),
-        "max_iterations":  MAX_RETRIES,
-        "timeline":        timeline,
-        "fixes":           all_fixes,
-    })
-
-    # Auto-create GitHub PR (ONLY if forked)
-    # If fork_owner is None, we pushed directly to therepo, so no PR is needed (per user request).
+    # 3. Auto-create GitHub PR (ONLY if forked)
     pr_url = None
     if all_fixes:
         if fork_owner:
-            if emit: emit({"type": "log", "tag": "INFO", "message": "Creating GitHub Pull Request..."})
+            _e("INFO", "Creating GitHub Pull Request...")
             pr_url = _create_github_pr(repo_url, formatted_branch, all_fixes, head_repo_owner=fork_owner, user_token=user_token, emit=emit)
             if pr_url:
-                if emit: emit({"type": "log", "tag": "INFO", "message": f"PR created → {pr_url}"})
-            # Else: error already emitted by _create_github_pr
+                _e("INFO", f"PR created → {pr_url}")
         else:
-            if emit: emit({"type": "log", "tag": "INFO", "message": "Direct push successful — skipping PR creation."})
+            _e("INFO", "Direct push successful — skipping PR creation.")
 
+    score_dict = results.get("score", {})
 
-    elapsed            = time.time() - start_time
-    minutes, secs      = divmod(int(elapsed), 60)
-    execution_time     = f"{minutes}m {secs}s"
-    speed_bonus        = 10 if elapsed < 300 else 0
-    efficiency_penalty = max(0, (commit_count - 20) * 2)
-    final_score        = 100 + speed_bonus - efficiency_penalty
-
+    # 4. Map back to frontend expected fields
     return {
         "repo_url":        repo_url,
         "team_name":       team_name,
         "leader_name":     leader_name,
         "branch_name":     formatted_branch,
-        "total_failures":  total_failures,
-        "total_fixes":     total_fixes_applied,
-        "ci_status":       final_status,
-        "execution_time":  execution_time,
+        "total_failures":  results.get("total_failures_detected", 0),
+        "total_fixes":     results.get("total_fixes_applied", 0),
+        "ci_status":       results.get("final_ci_status", "FAILED"),
+        "execution_time":  results.get("total_time_taken", "0m 0s"),
         "iterations_used": len(timeline),
         "max_iterations":  MAX_RETRIES,
         "score_breakdown": {
-            "base":               100,
-            "speed_bonus":        speed_bonus,
-            "efficiency_penalty": efficiency_penalty,
-            "final_score":        final_score,
+            "base":               score_dict.get("base", 100),
+            "speed_bonus":        score_dict.get("speed_bonus", 0),
+            "efficiency_penalty": score_dict.get("efficiency_penalty", 0),
+            "final_score":        score_dict.get("final", 0),
         },
         "fixes":    all_fixes,
-        "diffs":    all_diffs,
+        "diffs":    results.get("diffs", {}),
         "pr_url":   pr_url,
         "timeline": timeline,
-        "status":   "SUCCESS" if final_status == "PASSED" else "FAILED",
+        "status":   "SUCCESS" if results.get("final_ci_status") == "PASSED" else "FAILED",
     }
 
 

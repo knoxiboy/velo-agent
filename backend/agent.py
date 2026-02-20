@@ -178,6 +178,7 @@ class AgentState(TypedDict):
     # Node 3 outputs
     branch_pushed:      Optional[str]  # Name of the remote branch that was pushed
     commit_sha:         Optional[str]  # SHA of the healing commit
+    commit_shas:        List[str]      # SHAs of all healing commits in the run
     diffs:              Dict[str, Any] # {rel_path: {"unified_diff": str}} per fixed file
 
     # Shared
@@ -601,7 +602,15 @@ Now output Section 1 bug lines followed by the Section 2 JSON block:"""
     if json_match:
         try:
             parsed = json.loads(json_match.group(1))
-            fixes  = parsed.get("fixes", {})
+            raw_fixes = parsed.get("fixes", {})
+            # ✅ FIX: Strip any Markdown code fences the LLM may have accidentally
+            # wrapped around the file content (e.g. ```python\n...\n```).  Team 4
+            # (Techtonics) was disqualified because their LLM did exactly this —
+            # writing ``` fence markers into .py files, making them unparseable.
+            fixes = {
+                path: _strip_markdown_fences(content)
+                for path, content in raw_fixes.items()
+            }
             logger.info("[Node 2] Extracted corrected content for %d file(s).", len(fixes))
         except json.JSONDecodeError as jde:
             logger.error("[Node 2] Failed to parse JSON fixes block: %s", jde)
@@ -652,6 +661,38 @@ def _collect_source_context(repo_path: str, test_logs: str) -> str:
                 pass
 
     return "\n\n".join(context_parts) if context_parts else "(no source files extracted from logs)"
+
+
+# ===========================================================================
+# UTILITY — MARKDOWN FENCE STRIPPER
+# ===========================================================================
+
+def _strip_markdown_fences(content: str) -> str:
+    """
+    Remove Markdown code-fence wrappers the LLM may accidentally wrap around
+    file content inside its JSON output (e.g. ```python\\n...\\n```).
+
+    This prevents the exact failure mode seen in Team 4 (Techtonics) at RIFT 2026,
+    where the LLM wrote ```python fences into a .py file, causing an immediate
+    SyntaxError and making the entire file unparseable by the Python interpreter.
+    The agent then looped trying to fix its own mistake with identical before/after
+    content — a sign the fix was a no-op.
+
+    Examples cleaned:
+      ```python\\ndef foo(): pass\\n```  →  def foo(): pass
+      ```\\nconst x = 1;\\n```           →  const x = 1;
+    """
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        lines = stripped.split("\n")
+        # Drop the opening fence line (```python or ```)
+        if lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        # Drop the closing fence line if present at the end
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines)
+    return stripped
 
 
 # ===========================================================================
@@ -792,27 +833,71 @@ def node_gitops(state: AgentState) -> AgentState:
         logger.info("[Node 3] Staged %d file(s).", len(applied))
 
         # -------------------------------------------------------------------
-        # COMMIT — STRICT PREFIX "[AI-AGENT] " (space after bracket is mandatory)
-        # Commit message is built programmatically so the prefix is never missing.
-        # Author identity comes from GIT_AUTHOR_NAME / GIT_AUTHOR_EMAIL env vars
-        # (set in .env).  Falls back to the machine's global git config if unset.
+        # PER-FIX COMMITS — one commit per fixed file, each with the exact
+        # bug-report line as the message body.  This mirrors the expected
+        # output format: "[AI-AGENT] [BUG_TYPE] error in file line N → Fix: …".
+        #
+        # Why per-fix instead of one bulk commit?
+        # • Each commit message is self-contained and human-readable.
+        # • Judges can trace each fix independently in the PR commit list.
+        # • Avoids the messy "; "-joined blob from the previous approach.
         # -------------------------------------------------------------------
-        summary = "; ".join(bug_reports[:5]) or "autonomous healing pass"
-        commit_message = f"[AI-AGENT] {summary}"   # <-- MANDATORY PREFIX, ALWAYS applied
-
         author_name  = os.getenv("GIT_AUTHOR_NAME")
         author_email = os.getenv("GIT_AUTHOR_EMAIL")
+        actor = git.Actor(author_name, author_email) if (author_name and author_email) else None
 
-        if author_name and author_email:
-            actor  = git.Actor(author_name, author_email)
-            commit = repo.index.commit(commit_message, author=actor, committer=actor)
-            logger.info("[Node 3] Committing as: %s <%s>", author_name, author_email)
-        else:
-            # Fall back to whatever git global config has (user.name / user.email)
-            commit = repo.index.commit(commit_message)
-            logger.info("[Node 3] Committing as: git global config identity")
-        logger.info("[Node 3] Commit created: %s — %s", commit.hexsha[:10], commit_message)
-        _log("PATCH", f"Committed [AI-AGENT] fixes → {commit.hexsha[:10]}")
+        commit = None  # will hold the last commit made
+        commits_made: List[str] = []
+
+        # Build a lookup: rel_path → matching bug_report line (best match)
+        # so each file's commit message mentions the specific bug type.
+        def _bug_line_for_file(rel: str) -> str:
+            """Return the first bug-report line that references this file, or a generic message."""
+            for br in bug_reports:
+                # bug_report lines look like: [TYPE] error in src/foo.py line N → Fix: …
+                if rel.replace("\\", "/") in br or rel in br:
+                    return br        # already has the exact canonical format
+            return f"[AI-AGENT] Fix in {rel}"
+
+        for rel_path in applied:
+            repo.index.add([rel_path])
+
+            # Only commit if there are actually staged changes for this file
+            if not repo.index.diff("HEAD") and not repo.untracked_files:
+                logger.info("[Node 3] No diff for %s after staging — skipping commit.", rel_path)
+                continue
+
+            bug_line    = _bug_line_for_file(rel_path)
+            # Ensure [AI-AGENT] prefix — it's mandatory per disqualification rules
+            if bug_line.startswith("[") and not bug_line.startswith("[AI-AGENT]"):
+                commit_message = f"[AI-AGENT] {bug_line}"
+            elif not bug_line.startswith("[AI-AGENT]"):
+                commit_message = f"[AI-AGENT] {bug_line}"
+            else:
+                commit_message = bug_line
+
+            if actor:
+                commit = repo.index.commit(commit_message, author=actor, committer=actor)
+                logger.info("[Node 3] Committing as: %s <%s>", author_name, author_email)
+            else:
+                commit = repo.index.commit(commit_message)
+                logger.info("[Node 3] Committing as: git global config identity")
+
+            commits_made.append(commit.hexsha)
+            logger.info("[Node 3] Commit: %s — %s", commit.hexsha[:10], commit_message)
+            _log("PATCH", f"Committed [AI-AGENT] fix → {commit.hexsha[:10]}")
+
+        # If all staged files had no diff (e.g. LLM returned identical content),
+        # fall back to one catch-all commit so we always push something meaningful.
+        if commit is None:
+            summary = "; ".join(bug_reports[:3]) or "autonomous healing pass"
+            commit_message = f"[AI-AGENT] {summary}"
+            if actor:
+                commit = repo.index.commit(commit_message, author=actor, committer=actor)
+            else:
+                commit = repo.index.commit(commit_message)
+            commits_made.append(commit.hexsha)
+            logger.info("[Node 3] Fallback commit: %s", commit_message)
 
         # -------------------------------------------------------------------
         # PUSH — ONLY the healing branch, never main/master
@@ -831,13 +916,16 @@ def node_gitops(state: AgentState) -> AgentState:
         return {
             **state,
             "branch_pushed": formatted_branch,
-            "commit_sha":    commit.hexsha,
+            "commit_sha":    commit.hexsha if commit else None,
+            "commit_shas":   commits_made,
             "diffs":         file_diffs,
             "results": {
                 **state.get("results", {}),
                 "branch_pushed": formatted_branch,
-                "commit_sha":    commit.hexsha,
+                "commit_sha":    commit.hexsha if commit else None,
+                "commit_shas":   commits_made,
                 "files_fixed":   applied,
+                "total_commits": len(commits_made),
             },
             "error": None,
         }
@@ -889,34 +977,49 @@ def run_healing_agent(
     repo_path: str,
     raw_branch_name: str,
     emit=None,
+    max_retries: int = 5,
 ) -> Dict[str, Any]:
     """
-    Kick off the fully autonomous healing pipeline.
+    Kick off the fully autonomous healing pipeline with up to max_retries
+    iterations, each re-running sandbox_tester → llm_solver → gitops until
+    all tests pass or the retry budget is exhausted.
 
-    NO HUMAN INTERVENTION — this function calls graph.invoke() which
-    executes all three nodes sequentially without any input() calls,
-    confirmation prompts, or sleep/wait for human action.
+    NO HUMAN INTERVENTION — graph.invoke() runs all three nodes sequentially
+    without any input() calls, confirmation prompts, or manual steps.
 
     Args:
         repo_path:       Absolute path to the git repo to heal.
         raw_branch_name: Human-readable name from the frontend form input.
         emit:            Optional callable(event_dict) for live SSE streaming.
-                         When None (default) all _emit_event calls are no-ops.
+        max_retries:     Maximum healing iterations (default 5, configurable).
 
     Returns:
         A results dict that is also written to <repo_path>/results.json.
     """
     _emit_ctx.fn = emit
+    start_time = time.time()
     logger.info("▶  Velo autonomous healing started")
     logger.info("   repo_path       : %s", repo_path)
     logger.info("   raw_branch_name : %s", raw_branch_name)
+    logger.info("   max_retries     : %d", max_retries)
 
     # Pre-compute the strictly formatted branch name before the graph runs
     formatted_branch = format_branch_name(raw_branch_name)
     logger.info("   formatted_branch: %s", formatted_branch)
 
-    # Build the initial shared state
-    initial_state: AgentState = {
+    # -----------------------------------------------------------------------
+    # CI TIMELINE — one entry per iteration, accumulated across retries.
+    # This satisfies the dashboard requirement: "CI/CD Status Timeline" with
+    # pass/fail badge, timestamp, and "N/5" iteration counter.
+    # -----------------------------------------------------------------------
+    ci_timeline: List[Dict[str, Any]] = []
+    all_bug_reports: List[str] = []     # cumulative across all iterations
+    all_files_fixed: List[str] = []     # cumulative
+    total_commits: int = 0
+    final_state: Dict[str, Any] = {}
+
+    # Build the initial shared state (reused / updated across iterations)
+    current_state: AgentState = {
         "repo_path":        repo_path,
         "raw_branch_name":  raw_branch_name,
         "formatted_branch": formatted_branch,
@@ -927,6 +1030,7 @@ def run_healing_agent(
         "fixes":            {},
         "branch_pushed":    None,
         "commit_sha":       None,
+        "commit_shas":      [],
         "diffs":            {},
         "results": {
             "run_timestamp":  datetime.now(timezone.utc).isoformat(),
@@ -936,33 +1040,161 @@ def run_healing_agent(
         "error": None,
     }
 
-    # Compile and invoke the LangGraph pipeline
+    agent_graph = build_agent_graph()
+
     try:
-        agent_graph = build_agent_graph()
-        final_state = agent_graph.invoke(initial_state)
+        for attempt in range(1, max_retries + 1):
+            logger.info("=" * 60)
+            logger.info("HEALING ITERATION %d / %d", attempt, max_retries)
+            logger.info("=" * 60)
+            _log("INFO", f"── Healing iteration {attempt}/{max_retries} ──")
+
+            iter_start = datetime.now(timezone.utc)
+
+            # Run the full pipeline for this attempt
+            final_state = agent_graph.invoke(current_state)
+
+            # Accumulate bug reports and files fixed across all iterations
+            iter_bugs  = final_state.get("bug_reports", [])
+            iter_fixes = list(final_state.get("fixes", {}).keys())
+            
+            # handle case where list might be absent if branch hadn't pushed anything
+            commit_shas_list = final_state.get("commit_shas", [])
+            # fallback for older iterations
+            if not commit_shas_list and final_state.get("commit_sha"):
+                commit_shas_list = [final_state["commit_sha"]]
+                
+            iter_commits = len(commit_shas_list)
+
+            for br in iter_bugs:
+                if br not in all_bug_reports:
+                    all_bug_reports.append(br)
+            for f in iter_fixes:
+                if f not in all_files_fixed:
+                    all_files_fixed.append(f)
+            total_commits += iter_commits
+
+            tests_passed = final_state.get("tests_passed", False)
+            iter_error   = final_state.get("error")
+
+            # Record this CI run in the timeline
+            ci_timeline.append({
+                "iteration":       attempt,
+                "status":          "PASSED" if tests_passed else "FAILED",
+                "timestamp":       iter_start.isoformat(),
+                "failures_in_run": len(iter_bugs),
+                "fixes_in_run":    len(iter_fixes),
+                "commits_in_run":  iter_commits,
+                "error":           iter_error,
+            })
+
+            _log(
+                "PASS" if tests_passed else "ERROR",
+                f"Iteration {attempt}/{max_retries}: {'PASSED ✅' if tests_passed else 'FAILED ❌'}"
+                + (f" — {len(iter_bugs)} bug(s) found" if not tests_passed else ""),
+            )
+
+            if tests_passed:
+                logger.info("▶  All tests passing — healing complete after %d iteration(s).", attempt)
+                break
+
+            if iter_error:
+                logger.warning("[run_healing_agent] Iteration %d encountered error: %s", attempt, iter_error)
+
+            if attempt < max_retries:
+                # Feed the updated state back for the next iteration so the
+                # agent re-runs sandbox_tester with the fixed repo on disk.
+                current_state = {
+                    **final_state,
+                    # Reset per-iteration outputs so Node 1 re-discovers & re-runs
+                    "test_files":   [],
+                    "test_logs":    "",
+                    "tests_passed": False,
+                    "bug_reports":  [],
+                    "fixes":        {},
+                    # Keep branch so Node 3 reuses it
+                    "formatted_branch": formatted_branch,
+                    "error":        None,
+                }
+            else:
+                logger.warning("▶  Retry limit (%d) reached — stopping.", max_retries)
+
     finally:
         _emit_ctx.fn = None  # Always clear the emit callback after pipeline
 
+    elapsed_seconds = time.time() - start_time
+    elapsed_str     = f"{int(elapsed_seconds // 60)}m {int(elapsed_seconds % 60)}s"
+    final_ci_passed = final_state.get("tests_passed", False)
+
     # -----------------------------------------------------------------------
-    # RESULTS.JSON — written to the repo root at the end of EVERY run
+    # SCORE CALCULATION
+    # Base: 100 | Speed bonus: +10 if < 5 min | Efficiency: -2 per commit > 20
+    # Score is 0 if CI never passed (avoids the Team 4 "100/FAILED" contradiction)
+    # -----------------------------------------------------------------------
+    if final_ci_passed:
+        base_score    = 100
+        speed_bonus   = 10 if elapsed_seconds < 300 else 0
+        excess_commits = max(0, total_commits - 20)
+        efficiency_penalty = excess_commits * 2
+        final_score   = max(0, base_score + speed_bonus - efficiency_penalty)
+    else:
+        base_score         = 100
+        speed_bonus        = 0
+        efficiency_penalty = 0
+        final_score        = 0   # CI never passed — do NOT report a misleading high score
+
+    # -----------------------------------------------------------------------
+    # RESULTS.JSON — written to the repo root at the end of EVERY run.
+    # Fields are designed to be internally consistent (no more Team 4-style
+    # "4 fixes applied" + "CI: FAILED" + "Score: 100" contradictions).
     # -----------------------------------------------------------------------
     results_payload: Dict[str, Any] = {
-        "run_timestamp":          datetime.now(timezone.utc).isoformat(),
-        "repo_path":              repo_path,
-        "raw_branch_name":        raw_branch_name,
-        "formatted_branch":       formatted_branch,
-        "test_files_discovered":  final_state.get("test_files", []),
-        "tests_passed":           final_state.get("tests_passed", False),
-        "bug_reports":            final_state.get("bug_reports", []),
-        "files_fixed":            list(final_state.get("fixes", {}).keys()),
-        "branch_pushed":          final_state.get("branch_pushed"),
-        "commit_sha":             final_state.get("commit_sha"),
-        "diffs":                  final_state.get("diffs", {}),
-        "error":                  final_state.get("error"),
+        # Run metadata
+        "run_timestamp":           datetime.now(timezone.utc).isoformat(),
+        "repo_url":                repo_path,
+        "raw_branch_name":         raw_branch_name,
+        "branch_name":             formatted_branch,
+        "total_time_taken":        elapsed_str,
+        "total_time_seconds":      round(elapsed_seconds, 2),
+
+        # Test discovery
+        "test_files_discovered":   final_state.get("test_files", []),
+
+        # Bugs & fixes (consistent counters — unique bugs, not sum of iterations)
+        "total_failures_detected": len(all_bug_reports),
+        "total_fixes_applied":     len(all_files_fixed),
+        "bug_reports":             all_bug_reports,
+        "files_fixed":             all_files_fixed,
+
+        # Git output
+        "branch_pushed":           final_state.get("branch_pushed"),
+        "commit_sha":              final_state.get("commit_sha"),
+        "total_commits":           total_commits,
+        "diffs":                   final_state.get("diffs", {}),
+
+        # CI result — explicit boolean so no ambiguity
+        "final_ci_passed":         final_ci_passed,
+        "final_ci_status":         "PASSED" if final_ci_passed else "FAILED",
+        "iterations_used":         len(ci_timeline),
+        "max_retries":             max_retries,
+        "ci_timeline":             ci_timeline,
+
+        # Score (only meaningful when CI passed)
+        "score": {
+            "base":               base_score,
+            "speed_bonus":        speed_bonus,
+            "efficiency_penalty": efficiency_penalty,
+            "final":              final_score,
+        },
+
+        # Error info
+        "error":                   final_state.get("error"),
+
+        # Overall status string
         "status": (
-            "SUCCESS"       if not final_state.get("error") and final_state.get("branch_pushed")
-            else "NO_FIXES" if not final_state.get("error") and final_state.get("tests_passed")
-            else "PARTIAL"  if not final_state.get("error")
+            "SUCCESS"       if final_ci_passed and not final_state.get("error")
+            else "NO_FIXES" if final_ci_passed
+            else "PARTIAL"  if all_files_fixed
             else "FAILED"
         ),
     }
@@ -975,5 +1207,6 @@ def run_healing_agent(
     except OSError as exc:
         logger.error("Failed to write results.json: %s", exc)
 
-    logger.info("▶  Velo pipeline complete — status: %s", results_payload["status"])
+    logger.info("▶  Velo pipeline complete — status: %s | score: %d | time: %s",
+                results_payload["status"], final_score, elapsed_str)
     return results_payload
