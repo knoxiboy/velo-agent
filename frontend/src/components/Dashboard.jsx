@@ -453,7 +453,7 @@ export default function Dashboard({ data, onReset }) {
       <main style={{ flex: 1, maxWidth: 1280, width: '100%', margin: '0 auto', padding: '28px 24px 60px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* ── Stat row ── */}
-        <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div className="fade-in stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           {[
             {
               label: 'CI Status',
@@ -490,7 +490,7 @@ export default function Dashboard({ data, onReset }) {
         </div>
 
         {/* ── Run info + Score row ── */}
-        <div className="fade-in-1" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
+        <div className="fade-in-1 run-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
 
           {/* Run summary */}
           <div className="card" style={{ padding: 20 }}>
