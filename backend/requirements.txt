@@ -20,5 +20,8 @@ gitpython==3.1.43
 # Environment variable management
 python-dotenv==1.0.1
 
+# JWT for GitHub OAuth session tokens
+PyJWT>=2.8.0
+
 # Runtime utilities (bundled with Python but pinned for CI predictability)
 requests>=2.31.0

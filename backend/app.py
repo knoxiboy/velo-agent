@@ -27,18 +27,24 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Load .env before importing agent so GEMINI_API_KEY is available at module level
-load_dotenv()
+# Load .env from backend directory so it's found regardless of CWD
+_load_dotenv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(dotenv_path=_load_dotenv_path)
 
 from agent import run_healing_agent, format_branch_name  # noqa: E402
+from auth import require_auth, github_oauth_start, github_oauth_callback  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # App initialisation
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
 
-# CORS — allow every origin for local/hackathon use.
-CORS(app, resources={r"/api/*": {"origins": os.getenv("ALLOWED_ORIGINS", "*")}})
+# CORS — allow every origin for local/hackathon use; allow Authorization for JWT.
+# In production, replace "*" with your specific frontend domain(s).
+CORS(app, resources={r"/api/*": {
+    "origins": os.getenv("ALLOWED_ORIGINS", "*"),
+    "allow_headers": ["Content-Type", "Authorization"],
+}})
 
 logging.basicConfig(
     level=logging.INFO,
@@ -121,7 +127,26 @@ def _commit_results_json(repo_path: str, formatted_branch: str, payload: dict) -
 
 
 # ---------------------------------------------------------------------------
-# Authenticated clone URL (prevents "No such device or address" on Railway)
+# Auth (GitHub OAuth via backend) — no Firebase
+# ---------------------------------------------------------------------------
+@app.route("/api/auth/github", methods=["GET"])
+def auth_github_start():
+    """Redirect to GitHub OAuth. Frontend links here for 'Login with GitHub'."""
+    return github_oauth_start()
+
+
+@app.route("/api/auth/github/callback", methods=["GET"])
+def auth_github_callback():
+    """GitHub redirects here with code; we exchange for token and redirect to frontend with JWT."""
+    return github_oauth_callback()
+
+
+@app.route("/api/auth/me", methods=["GET"])
+@require_auth
+def auth_me():
+    """Return current user from JWT (Authorization: Bearer <token>)."""
+    return jsonify({"user": request.current_user}), 200
+# Auto GitHub PR creation (best-effort, requires GITHUB_TOKEN env var)
 # ---------------------------------------------------------------------------
 def _clone_url_with_token(repo_url: str) -> str:
     """Inject GITHUB_TOKEN into a GitHub HTTPS URL for credential-free cloning."""
@@ -484,7 +509,38 @@ def health_check():
 # Primary trigger endpoint (batch — waits for full result)
 # ---------------------------------------------------------------------------
 @app.route("/api/analyze", methods=["POST"])
+@require_auth
 def analyze():
+    """
+    Trigger the autonomous healing pipeline. Requires Authorization: Bearer <jwt> (from GitHub OAuth).
+
+    Expected JSON body:
+    ┌───────────────────────────────────────────────────────────┐
+    │ {                                                         │
+    │   "repo_url":    "https://github.com/org/repo",          │
+    │   "team_name":   "Vakratund",                            │
+    │   "leader_name": "Tejas Kumar Punyap"                    │
+    │ }                                                         │
+    └───────────────────────────────────────────────────────────┘
+
+    Flow:
+      1. Validate input fields.
+      2. Clone the GitHub repo into a secure temp directory.
+      3. Build the branch name: format_branch_name("{team_name} {leader_name}")
+         → VAKRATUND_TEJAS_KUMAR_PUNYAP_AI_Fix
+      4. Run the healing agent in a retry loop (up to MAX_RETRIES iterations).
+         Each iteration: sandbox_tester → llm_solver → gitops
+         Stop early when tests pass or no more bugs are found.
+      5. Shape the aggregated results into the React dashboard format.
+      6. Clean up temp directory unconditionally.
+
+    Returns:
+        200 — all tests passing after healing
+        207 — partial success (fixes applied but tests still failing)
+        400 — bad request (missing / invalid fields, clone failure)
+        500 — unhandled internal error
+    """
+    # -- Validate request body ------------------------------------------
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Request body must be valid JSON."}), 400

@@ -1,7 +1,12 @@
-import { useEffect, useRef } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import LandingPage from './components/LandingPage';
 import Dashboard from './components/Dashboard';
+import AuthPage from './components/AuthPage';
 import { useApp } from './context/AppContext.jsx';
+
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -178,12 +183,14 @@ function AnalyzingScreen({ repoUrl, liveLog }) {
 }
 
 
-/* ── Root App ── */
-export default function App() {
+/* ── Main content (landing + analyzing + dashboard) ── */
+function AppContent() {
+  const navigate = useNavigate();
+  const { getIdToken } = useAuth();
   const {
     loading, setLoading,
     results, setResults,
-    error,   setError,
+    error, setError,
     liveLog, setLiveLog,
     analyzingRepo, setAnalyzingRepo,
     liveLogRef,
@@ -191,6 +198,12 @@ export default function App() {
   } = useApp();
 
   const handleSubmit = async ({ repo_url, team_name, leader_name }) => {
+    const token = await getIdToken();
+    if (!token) {
+      setError('Please sign in to run analysis.');
+      navigate('/auth', { replace: true });
+      return;
+    }
     setLoading(true);
     setError('');
     setResults(null);
@@ -199,14 +212,28 @@ export default function App() {
     liveLogRef.current = [];
 
     try {
-      // ── Try streaming endpoint first (new backend) ──────────────────────
-      // Falls back to the batch endpoint automatically so the deployed
-      // Railway backend (old code without /stream) still works for everyone.
+      const res = await fetch(`${API_URL}/api/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ repo_url, team_name, leader_name }),
+      });
+      if (res.status === 401) {
+        setError('Session expired. Please sign in again.');
+        navigate('/auth', { replace: true });
+        return;
+      }
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || `Server error ${res.status}`);
+      }
+      // Try streaming endpoint first; fall back to batch if needed
       let usedStream = false;
-
       const streamRes = await fetch(`${API_URL}/api/analyze/stream`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify({ repo_url, team_name, leader_name }),
       });
 
@@ -252,7 +279,7 @@ export default function App() {
         // ── Batch fallback (old Railway deployment / non-streaming backend) ─
         const batchRes = await fetch(`${API_URL}/api/analyze`, {
           method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body:    JSON.stringify({ repo_url, team_name, leader_name }),
         });
 
@@ -285,7 +312,7 @@ export default function App() {
   return (
     <>
       <LandingPage onSubmit={handleSubmit} loading={loading} />
-      {error && !loading && (
+      {error && !loading && !results && (
         <div style={{
           position: 'fixed', bottom: 24, left: 24, right: 24, zIndex: 100,
           background: 'var(--surface)', border: '1px solid var(--error-border)',
@@ -309,5 +336,14 @@ export default function App() {
         </div>
       )}
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/" element={<AppContent />} />
+    </Routes>
   );
 }
