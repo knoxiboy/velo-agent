@@ -11,17 +11,17 @@ import { useApp } from './context/AppContext.jsx';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const TAG_COLOR = {
-  INFO:  '#6366f1',
+  INFO: '#6366f1',
   ERROR: '#ef4444',
   AGENT: '#f59e0b',
-  PASS:  '#22c55e',
+  PASS: '#22c55e',
   PATCH: '#22d3ee',
-  BUG:   '#f87171',
+  BUG: '#f87171',
 };
 
 /* ── Live Analyzing Screen ── */
 function AnalyzingScreen({ repoUrl, liveLog }) {
-  const logRef  = useRef(null);
+  const logRef = useRef(null);
 
   useEffect(() => {
     if (logRef.current) {
@@ -31,7 +31,7 @@ function AnalyzingScreen({ repoUrl, liveLog }) {
 
   // Derive which pipeline node is currently active
   const nodeMessages = liveLog.filter(e => e.message?.startsWith('── Node'));
-  const activeNode   = nodeMessages[nodeMessages.length - 1]?.message || '';
+  const activeNode = nodeMessages[nodeMessages.length - 1]?.message || '';
 
   const nodeStatus = (label) => {
     const idx = nodeMessages.findIndex(e => e.message?.includes(label));
@@ -42,31 +42,31 @@ function AnalyzingScreen({ repoUrl, liveLog }) {
 
   const NODES = [
     { key: '1', label: 'Sandbox Tester', color: '#60a5fa' },
-    { key: '2', label: 'LLM Solver',     color: '#a78bfa' },
-    { key: '3', label: 'GitOps',         color: '#34d399' },
+    { key: '2', label: 'LLM Solver', color: '#a78bfa' },
+    { key: '3', label: 'GitOps', color: '#34d399' },
   ];
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+
+      <div className="mesh-bg" />
+      <div className="grid-overlay" />
 
       {/* Header */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid var(--border)',
-        background: 'rgba(9,9,11,0.9)',
-        backdropFilter: 'blur(12px)',
-        padding: '0 24px', height: 56,
+        padding: '24px 40px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 28, height: 28, background: 'var(--accent)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 32, height: 32, background: 'var(--text)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" fill="none" stroke="black" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>Velo</span>
-          <span style={{ color: 'var(--border)', fontSize: 16 }}>/</span>
-          <span style={{ fontSize: 13, color: 'var(--text-3)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: 'var(--text)' }}>Velo AI</span>
+          <span style={{ color: 'var(--border)', fontSize: 18, margin: '0 4px' }}>/</span>
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-3)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {repoUrl?.replace('https://github.com/', '') || 'Analyzing...'}
           </span>
         </div>
@@ -83,7 +83,7 @@ function AnalyzingScreen({ repoUrl, liveLog }) {
           {NODES.map((node, i) => {
             const status = nodeStatus(node.label);
             const isActive = status === 'active';
-            const isDone   = status === 'done';
+            const isDone = status === 'done';
             return (
               <div key={node.key} className="card" style={{
                 padding: '14px 18px',
@@ -147,8 +147,8 @@ function AnalyzingScreen({ repoUrl, liveLog }) {
             )}
             {liveLog.map((event, i) => {
               const c = TAG_COLOR[event.tag] || 'var(--text-3)';
-              const isBug    = event.tag === 'BUG';
-              const isPass   = event.tag === 'PASS';
+              const isBug = event.tag === 'BUG';
+              const isPass = event.tag === 'PASS';
               const isHeader = event.message?.startsWith('──');
               return (
                 <div key={i} style={{
@@ -214,16 +214,16 @@ function AppContent() {
       let usedStream = false;
       try {
         const streamRes = await fetch(`${API_URL}/api/analyze/stream`, {
-          method:  'POST',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body:    JSON.stringify({ repo_url, team_name, leader_name }),
+          body: JSON.stringify({ repo_url, team_name, leader_name }),
         });
 
         if (streamRes.ok && streamRes.headers.get('content-type')?.includes('text/event-stream')) {
           usedStream = true;
-          const reader  = streamRes.body.getReader();
+          const reader = streamRes.body.getReader();
           const decoder = new TextDecoder();
-          let   buffer  = '';
+          let buffer = '';
 
           while (true) {
             const { done, value } = await reader.read();
@@ -262,9 +262,9 @@ function AppContent() {
       if (!usedStream) {
         // ── Batch fallback ─────────────────────────────────────────────
         const batchRes = await fetch(`${API_URL}/api/analyze`, {
-          method:  'POST',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body:    JSON.stringify({ repo_url, team_name, leader_name }),
+          body: JSON.stringify({ repo_url, team_name, leader_name }),
         });
 
         if (!batchRes.ok) {
@@ -306,7 +306,7 @@ function AppContent() {
           maxWidth: 520, margin: '0 auto',
         }}>
           <svg width="18" height="18" fill="none" stroke="var(--error)" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <div style={{ flex: 1 }}>
             <p style={{ color: 'var(--error)', fontWeight: 600, fontSize: 13, marginBottom: 2 }}>Analysis Failed</p>
@@ -314,7 +314,7 @@ function AppContent() {
           </div>
           <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4 }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>

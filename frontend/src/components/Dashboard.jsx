@@ -20,12 +20,12 @@ function useCountUp(target, dur = 900) {
 
 /* ── Bug type config ── */
 const BUG_CFG = {
-  LINTING:     { bg: '#1e1b4b', color: '#818cf8', border: 'rgba(129,140,248,0.3)' },
-  SYNTAX:      { bg: '#451a03', color: '#fbbf24', border: 'rgba(251,191,36,0.3)'  },
-  LOGIC:       { bg: '#450a0a', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
-  TYPE_ERROR:  { bg: '#431407', color: '#fb923c', border: 'rgba(251,146,60,0.3)'  },
-  IMPORT:      { bg: '#083344', color: '#22d3ee', border: 'rgba(34,211,238,0.3)'  },
-  INDENTATION: { bg: '#052e16', color: '#4ade80', border: 'rgba(74,222,128,0.3)'  },
+  LINTING: { bg: '#1e1b4b', color: '#818cf8', border: 'rgba(129,140,248,0.3)' },
+  SYNTAX: { bg: '#451a03', color: '#fbbf24', border: 'rgba(251,191,36,0.3)' },
+  LOGIC: { bg: '#450a0a', color: '#f87171', border: 'rgba(248,113,113,0.3)' },
+  TYPE_ERROR: { bg: '#431407', color: '#fb923c', border: 'rgba(251,146,60,0.3)' },
+  IMPORT: { bg: '#083344', color: '#22d3ee', border: 'rgba(34,211,238,0.3)' },
+  INDENTATION: { bg: '#052e16', color: '#4ade80', border: 'rgba(74,222,128,0.3)' },
 };
 
 function BugPill({ type }) {
@@ -94,7 +94,7 @@ function DiffViewer({ unifiedDiff }) {
     }}>
       {lines.map((line, i) => {
         let color = 'var(--text-3)';
-        let bg    = 'transparent';
+        let bg = 'transparent';
         if (line.startsWith('+') && !line.startsWith('+++')) {
           color = '#4ade80'; bg = 'rgba(74,222,128,0.07)';
         } else if (line.startsWith('-') && !line.startsWith('---')) {
@@ -125,20 +125,20 @@ function buildLogLines(runs, maxRetries) {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   };
   const lines = [
-    { tag: 'INFO',  time: ts(0), text: 'Initializing Velo Autonomous Agent...' },
-    { tag: 'INFO',  time: ts(2), text: `Max retries: ${maxRetries}. Monitoring ${runs.length} run(s).` },
+    { tag: 'INFO', time: ts(0), text: 'Initializing Velo Autonomous Agent...' },
+    { tag: 'INFO', time: ts(2), text: `Max retries: ${maxRetries}. Monitoring ${runs.length} run(s).` },
   ];
   runs.forEach((run, i) => {
     const t = run.timestamp || ts(10 + i * 30);
     lines.push({ tag: '', time: '', text: '' });
-    lines.push({ tag: 'INFO',  time: t, text: `── Iteration ${i + 1} / ${maxRetries} ──` });
+    lines.push({ tag: 'INFO', time: t, text: `── Iteration ${i + 1} / ${maxRetries} ──` });
     const passed = run.status?.toUpperCase() === 'PASSED';
     if (!passed) {
       lines.push({ tag: 'ERROR', time: t, text: `${run.failures_count || 0} failure(s) detected.` });
       if (run.fixes_applied) lines.push({ tag: 'AGENT', time: t, text: `Applying ${run.fixes_applied} fix(es) via Gemini 2.5 Flash...` });
-      if (run.commit_sha)    lines.push({ tag: 'PATCH', time: t, text: `Committed ${run.commit_sha} to branch.` });
+      if (run.commit_sha) lines.push({ tag: 'PATCH', time: t, text: `Committed ${run.commit_sha} to branch.` });
     } else {
-      lines.push({ tag: 'PASS',  time: t, text: 'All tests passing — pipeline green ✓' });
+      lines.push({ tag: 'PASS', time: t, text: 'All tests passing — pipeline green ✓' });
     }
   });
   lines.push({ tag: '', time: '', text: '' });
@@ -150,8 +150,8 @@ function TerminalLog({ runs = [], maxRetries = 5, liveLog = [] }) {
   const bodyRef = useRef(null);
 
   // Use real liveLog events if available; fall back to reconstructed timeline
-  const useLive     = liveLog.length > 0;
-  const allLines    = useLive ? null : buildLogLines(runs, maxRetries);
+  const useLive = liveLog.length > 0;
+  const allLines = useLive ? null : buildLogLines(runs, maxRetries);
   const [shown, setShown] = useState([]);
   const timerRef = useRef(null);
 
@@ -195,26 +195,26 @@ function TerminalLog({ runs = [], maxRetries = 5, liveLog = [] }) {
       <div ref={bodyRef} style={{ padding: '12px 16px', fontSize: 12, lineHeight: 1.7, height: 260, overflowY: 'auto', fontFamily: "'JetBrains Mono', monospace" }}>
         {useLive
           ? liveLog.map((event, i) => {
-              const c = TAG_COLOR_TERM[event.tag] || 'var(--text-3)';
-              return (
-                <div key={i} style={{ display: 'flex', gap: 12, borderLeft: event.tag === 'PASS' ? '2px solid var(--success)' : '2px solid transparent', paddingLeft: 6, marginLeft: -8 }}>
-                  <span style={{ color: c, fontWeight: 700, minWidth: 44, flexShrink: 0 }}>[{event.tag}]</span>
-                  <span style={{ color: event.tag === 'PASS' ? '#4ade80' : '#d4d4d8' }}>{event.message}</span>
-                </div>
-              );
-            })
+            const c = TAG_COLOR_TERM[event.tag] || 'var(--text-3)';
+            return (
+              <div key={i} style={{ display: 'flex', gap: 12, borderLeft: event.tag === 'PASS' ? '2px solid var(--success)' : '2px solid transparent', paddingLeft: 6, marginLeft: -8 }}>
+                <span style={{ color: c, fontWeight: 700, minWidth: 44, flexShrink: 0 }}>[{event.tag}]</span>
+                <span style={{ color: event.tag === 'PASS' ? '#4ade80' : '#d4d4d8' }}>{event.message}</span>
+              </div>
+            );
+          })
           : shown.map((line, i) => {
-              if (!line) return null;
-              if (!line.text) return <div key={i} style={{ height: 6 }} />;
-              const c = TAG_COLOR_TERM[line.tag] || 'var(--text-3)';
-              return (
-                <div key={i} style={{ display: 'flex', gap: 12, borderLeft: line.tag === 'PASS' ? '2px solid var(--success)' : '2px solid transparent', paddingLeft: 6, marginLeft: -8 }}>
-                  <span style={{ color: 'var(--text-3)', minWidth: 52, flexShrink: 0 }}>{line.time}</span>
-                  <span style={{ color: c, fontWeight: 700, minWidth: 44, flexShrink: 0 }}>[{line.tag}]</span>
-                  <span style={{ color: '#d4d4d8' }}>{line.text}</span>
-                </div>
-              );
-            })}
+            if (!line) return null;
+            if (!line.text) return <div key={i} style={{ height: 6 }} />;
+            const c = TAG_COLOR_TERM[line.tag] || 'var(--text-3)';
+            return (
+              <div key={i} style={{ display: 'flex', gap: 12, borderLeft: line.tag === 'PASS' ? '2px solid var(--success)' : '2px solid transparent', paddingLeft: 6, marginLeft: -8 }}>
+                <span style={{ color: 'var(--text-3)', minWidth: 52, flexShrink: 0 }}>{line.time}</span>
+                <span style={{ color: c, fontWeight: 700, minWidth: 44, flexShrink: 0 }}>[{line.tag}]</span>
+                <span style={{ color: '#d4d4d8' }}>{line.text}</span>
+              </div>
+            );
+          })}
         {!done && (
           <div style={{ display: 'flex', gap: 12, paddingLeft: 6, marginLeft: -8, borderLeft: '2px solid transparent' }}>
             <span style={{ color: 'var(--accent)' }} className="blink-cursor">&nbsp;</span>
@@ -309,22 +309,22 @@ function downloadResultAsTxt(data) {
 
 /* ── Main Dashboard ── */
 export default function Dashboard({ data, onReset }) {
-  const [bugFilter,    setBugFilter]    = useState('ALL');
+  const [bugFilter, setBugFilter] = useState('ALL');
   const [copiedBranch, setCopiedBranch] = useState(false);
-  const [devMode,      setDevMode]      = useState(false);
-  const [expandedFix,  setExpandedFix]  = useState(null);
+  const [devMode, setDevMode] = useState(false);
+  const [expandedFix, setExpandedFix] = useState(null);
 
-  const isPassed    = data.ci_status?.toUpperCase() === 'PASSED';
-  const failures    = useCountUp(data.total_failures ?? 0);
-  const fixesCount  = useCountUp(data.total_fixes ?? 0);
-  const score       = data.score_breakdown?.final_score ?? data.score_breakdown?.final ?? 0;
-  const fixRate     = data.total_failures > 0
+  const isPassed = data.ci_status?.toUpperCase() === 'PASSED';
+  const failures = useCountUp(data.total_failures ?? 0);
+  const fixesCount = useCountUp(data.total_fixes ?? 0);
+  const score = data.score_breakdown?.final_score ?? data.score_breakdown?.final ?? 0;
+  const fixRate = data.total_failures > 0
     ? Math.round((data.total_fixes / data.total_failures) * 100) : 0;
 
-  const allFixes      = data.fixes_applied || data.fixes || [];
-  const cicdTimeline  = data.cicd_timeline  || data.timeline || [];
-  const allDiffs      = data.diffs || {};
-  const liveLog       = data.liveLog || [];
+  const allFixes = data.fixes_applied || data.fixes || [];
+  const cicdTimeline = data.cicd_timeline || data.timeline || [];
+  const allDiffs = data.diffs || {};
+  const liveLog = data.liveLog || [];
 
   const bugCounts = allFixes.reduce((acc, f) => {
     const t = f.bug_type || 'UNKNOWN';
@@ -335,39 +335,39 @@ export default function Dashboard({ data, onReset }) {
   const visibleFixes = bugFilter === 'ALL' ? allFixes : allFixes.filter(f => f.bug_type === bugFilter);
 
   const copyBranch = () => {
-    navigator.clipboard.writeText(data.branch_name || '').catch(() => {});
+    navigator.clipboard.writeText(data.branch_name || '').catch(() => { });
     setCopiedBranch(true);
     setTimeout(() => setCopiedBranch(false), 2000);
   };
 
-  const baseScore   = data.score_breakdown?.base ?? data.score_breakdown?.base_score ?? 100;
-  const speedBonus  = data.score_breakdown?.speed_bonus ?? 0;
-  const penalty     = Math.abs(data.score_breakdown?.efficiency_penalty ?? 0);
-  const maxRetries  = data.max_retries || data.max_iterations || 5;
+  const baseScore = data.score_breakdown?.base ?? data.score_breakdown?.base_score ?? 100;
+  const speedBonus = data.score_breakdown?.speed_bonus ?? 0;
+  const penalty = Math.abs(data.score_breakdown?.efficiency_penalty ?? 0);
+  const maxRetries = data.max_retries || data.max_iterations || 5;
 
   const toggleFix = (i) => setExpandedFix(prev => prev === i ? null : i);
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+
+      <div className="mesh-bg" />
+      <div className="grid-overlay" />
 
       {/* ── Header ── */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 50,
-        borderBottom: '1px solid var(--border)',
-        background: 'rgba(9,9,11,0.9)',
-        backdropFilter: 'blur(12px)',
-        padding: '0 24px', height: 56,
+        padding: '24px 40px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 28, height: 28, background: 'var(--accent)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 32, height: 32, background: 'var(--text)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" fill="none" stroke="black" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em' }}>Velo</span>
-          <span style={{ color: 'var(--border)', fontSize: 16 }}>/</span>
-          <span style={{ fontSize: 13, color: 'var(--text-3)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: 'var(--text)' }}>Velo AI</span>
+          <span style={{ color: 'var(--border)', fontSize: 18, margin: '0 4px' }}>/</span>
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-3)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {data.repo_url?.replace('https://github.com/', '') || 'Analysis'}
           </span>
           <span className={`badge`} style={{
@@ -376,7 +376,7 @@ export default function Dashboard({ data, onReset }) {
             border: `1px solid ${isPassed ? 'var(--success-border)' : 'var(--error-border)'}`,
             marginLeft: 8,
           }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: isPassed ? 'var(--success)' : 'var(--error)', display: 'inline-block' }} />
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: isPassed ? 'var(--success)' : 'var(--error)', display: 'inline-block' }} className={isPassed ? '' : 'pulse-dot'} />
             {isPassed ? 'PASSED' : 'FAILED'}
           </span>
         </div>
@@ -399,8 +399,8 @@ export default function Dashboard({ data, onReset }) {
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >
               <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/>
-                <path d="M13 6h3a2 2 0 0 1 2 2v7M11 18H8a2 2 0 0 1-2-2V9"/>
+                <circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" />
+                <path d="M13 6h3a2 2 0 0 1 2 2v7M11 18H8a2 2 0 0 1-2-2V9" />
               </svg>
               View PR
             </a>
@@ -413,13 +413,13 @@ export default function Dashboard({ data, onReset }) {
             style={{
               fontSize: 12, padding: '6px 12px',
               background: devMode ? 'var(--accent-muted)' : 'transparent',
-              color:      devMode ? 'var(--accent)'       : 'var(--text-3)',
+              color: devMode ? 'var(--accent)' : 'var(--text-3)',
               border: devMode ? '1px solid var(--accent-border)' : '1px solid var(--border)',
               borderRadius: 7,
             }}
           >
             <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+              <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
             </svg>
             Dev Mode
           </button>
@@ -436,13 +436,13 @@ export default function Dashboard({ data, onReset }) {
             }}
           >
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
             </svg>
             Download TXT
           </button>
           <button className="btn-ghost" onClick={onReset} style={{ fontSize: 13 }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M12 5v14M5 12l7-7 7 7"/>
+              <path d="M12 5v14M5 12l7-7 7 7" />
             </svg>
             New Scan
           </button>
@@ -496,18 +496,18 @@ export default function Dashboard({ data, onReset }) {
           <div className="card" style={{ padding: 20 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
               Run Summary
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {[
-                { label: 'Repository',     value: data.repo_url?.replace('https://github.com/', '') || '—', mono: true },
+                { label: 'Repository', value: data.repo_url?.replace('https://github.com/', '') || '—', mono: true },
                 { label: 'Branch Created', value: data.branch_name || '—', mono: true, copy: true },
-                { label: 'Team',           value: data.team_name || '—',   mono: false },
-                { label: 'Leader',         value: data.leader_name || '—', mono: false },
+                { label: 'Team', value: data.team_name || '—', mono: false },
+                { label: 'Leader', value: data.leader_name || '—', mono: false },
                 { label: 'Iterations Used', value: `${cicdTimeline.length} / ${maxRetries}`, mono: true },
-                { label: 'Execution Time',  value: data.execution_time || '—', mono: true },
+                { label: 'Execution Time', value: data.execution_time || '—', mono: true },
               ].map(item => (
                 <div key={item.label} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
                   <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>{item.label}</div>
@@ -519,8 +519,8 @@ export default function Dashboard({ data, onReset }) {
                       <button onClick={copyBranch} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedBranch ? 'var(--success)' : 'var(--text-3)', flexShrink: 0, padding: 0 }}>
                         <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           {copiedBranch
-                            ? <polyline points="20 6 9 17 4 12"/>
-                            : <><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>
+                            ? <polyline points="20 6 9 17 4 12" />
+                            : <><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>
                           }
                         </svg>
                       </button>
@@ -535,7 +535,7 @@ export default function Dashboard({ data, onReset }) {
           <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
               </svg>
               Performance Score
             </div>
@@ -544,9 +544,9 @@ export default function Dashboard({ data, onReset }) {
               <ScoreRing score={score} />
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
-                  { label: 'Base',        val: baseScore,                 color: '#6366f1', pct: (baseScore / 200) * 100 },
-                  { label: 'Speed Bonus', val: `+${speedBonus}`,          color: 'var(--success)', pct: (speedBonus / 20) * 100 },
-                  { label: 'Penalty',     val: penalty ? `-${penalty}` : '0', color: penalty ? 'var(--error)' : 'var(--text-3)', pct: (penalty / 20) * 100 },
+                  { label: 'Base', val: baseScore, color: '#6366f1', pct: (baseScore / 200) * 100 },
+                  { label: 'Speed Bonus', val: `+${speedBonus}`, color: 'var(--success)', pct: (speedBonus / 20) * 100 },
+                  { label: 'Penalty', val: penalty ? `-${penalty}` : '0', color: penalty ? 'var(--error)' : 'var(--text-3)', pct: (penalty / 20) * 100 },
                 ].map(row => (
                   <div key={row.label}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
@@ -572,11 +572,11 @@ export default function Dashboard({ data, onReset }) {
           <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="14" height="14" fill="none" stroke="var(--text-3)" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
               </svg>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Fixes Applied</span>
               <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-3)', border: '1px solid var(--border)', fontSize: 11 }}>
@@ -601,7 +601,7 @@ export default function Dashboard({ data, onReset }) {
                       padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
                       letterSpacing: '0.04em', cursor: 'pointer', whiteSpace: 'nowrap',
                       background: isActive ? (c ? c.bg : 'var(--accent-muted)') : 'transparent',
-                      color:      isActive ? (c ? c.color : 'var(--accent)') : 'var(--text-3)',
+                      color: isActive ? (c ? c.color : 'var(--accent)') : 'var(--text-3)',
                       border: isActive ? `1px solid ${c ? c.border : 'var(--accent-border)'}` : '1px solid var(--border)',
                       transition: 'all 0.15s',
                     }}
@@ -661,12 +661,12 @@ export default function Dashboard({ data, onReset }) {
                         <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                           {fix.status?.toLowerCase() === 'fixed' ? (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--success)' }}>
-                              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
                               Fixed
                             </span>
                           ) : (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--error)' }}>
-                              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                               Failed
                             </span>
                           )}
@@ -679,7 +679,7 @@ export default function Dashboard({ data, onReset }) {
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: isExpanded ? 'var(--accent)' : 'var(--text-3)', padding: 4, display: 'inline-flex' }}
                               >
                                 <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                                  <polyline points="6 9 12 15 18 9"/>
+                                  <polyline points="6 9 12 15 18 9" />
                                 </svg>
                               </button>
                             ) : (
@@ -696,7 +696,7 @@ export default function Dashboard({ data, onReset }) {
                             <div style={{ paddingTop: 12 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                                 <svg width="13" height="13" fill="none" stroke="var(--text-3)" strokeWidth="2" viewBox="0 0 24 24">
-                                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                                  <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
                                 </svg>
                                 <span className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
                                   {fix.file} — AI-generated patch
@@ -720,7 +720,7 @@ export default function Dashboard({ data, onReset }) {
           <div className="card fade-in" style={{ overflow: 'hidden' }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="14" height="14" fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24">
-                <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
               </svg>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Developer Report</span>
               <span className="mono" style={{ fontSize: 10, color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', padding: '2px 7px', borderRadius: 4 }}>
@@ -758,10 +758,10 @@ export default function Dashboard({ data, onReset }) {
           <div className="card fade-in-3" style={{ overflow: 'hidden' }}>
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="14" height="14" fill="none" stroke="var(--text-3)" strokeWidth="2" viewBox="0 0 24 24">
-                <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
-                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
-                <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
-                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                <line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" />
+                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" /><line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+                <line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" />
+                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" /><line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
               </svg>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>CI/CD Status Timeline</span>
               <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-3)', border: '1px solid var(--border)', fontSize: 11 }}>
@@ -793,11 +793,11 @@ export default function Dashboard({ data, onReset }) {
                       }}>
                         {passed ? (
                           <svg width="14" height="14" fill="none" stroke="var(--success)" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <polyline points="20 6 9 17 4 12"/>
+                            <polyline points="20 6 9 17 4 12" />
                           </svg>
                         ) : (
                           <svg width="14" height="14" fill="none" stroke="var(--error)" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                           </svg>
                         )}
                       </div>
@@ -847,7 +847,7 @@ export default function Dashboard({ data, onReset }) {
         <div className="fade-in-3">
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+              <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
             </svg>
             CI/CD Agent Log
           </div>
@@ -873,7 +873,7 @@ export default function Dashboard({ data, onReset }) {
             }}
           >
             <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
             </svg>
             Download result (.txt)
           </button>
