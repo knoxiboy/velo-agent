@@ -146,8 +146,38 @@ function buildLogLines(runs, maxRetries) {
   return lines;
 }
 
-function TerminalLog({ runs = [], maxRetries = 5, liveLog = [] }) {
+const ASCII_ART = [
+  " .`                                 `/",
+  " `++:.                           `-/+/",
+  "  `+sso+:-`                 `.-/+oso:",
+  "   `/ossssso+/:-        -:/+osssso+-",
+  "     /ossssssss/        +ssssooo/-",
+  "      :osssssss/        osssso+++.",
+  "       -osssssso.      :ssssssso.",
+  "        .oossssso-````/ossssss+`",
+  "         ./ooosssso++osssssso+`",
+  "          `/+++ooooooooooooo/`",
+  "           `/++++++++++++++:",
+  "            `/++++/+++++++:",
+  "             `/:-:++oooo+:",
+  "               -+oooooo+:",
+  "               `+oooooo:",
+  "                `+oooo:",
+  "                 `ooo/",
+  "                  .o+`",
+  "                   -`"
+].join('\n');
+
+function TerminalLog({ runs = [], maxRetries = 5, liveLog = [], data = {} }) {
   const bodyRef = useRef(null);
+  const [memoryUsed, setMemoryUsed] = useState(420);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMemoryUsed(415 + Math.floor(Math.random() * 25));
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
 
   // Use real liveLog events if available; fall back to reconstructed timeline
   const useLive = liveLog.length > 0;
@@ -175,51 +205,141 @@ function TerminalLog({ runs = [], maxRetries = 5, liveLog = [] }) {
   const done = useLive ? true : shown.length >= (allLines?.length ?? 0);
 
   return (
-    <div style={{ background: '#0d0d0f', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 5 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e' }} />
-          </div>
-          <span className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4 }}>
-            agent-output — {useLive ? 'recorded live session' : 'reconstructed'}
-          </span>
+    <div className="mock-window fade-in-1" style={{
+      position: 'relative', display: 'flex', flexDirection: 'column',
+      borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)',
+      boxShadow: '0 24px 80px rgba(0,0,0,0.8), 0 0 40px rgba(255, 126, 103, 0.1)',
+      background: '#050505'
+    }}>
+      <div className="mock-window-header" style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '16px 24px', background: '#0a0a0a', borderBottom: '1px solid var(--border)'
+      }}>
+        <div className="mock-dots" style={{ display: 'flex', gap: 8 }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f56' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ffbd2e' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#27c93f' }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: done ? 'var(--success)' : 'var(--warning)', display: 'inline-block' }} className={done ? '' : 'pulse-dot'} />
+        <div className="mono" style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>
+          agent-output — {useLive ? 'recorded live session' : 'reconstructed timeline'}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 52, justifyContent: 'flex-end' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: done ? 'var(--success)' : 'var(--warning)', display: 'inline-block' }} className={done ? '' : 'pulse-dot'} />
           <span className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>{done ? 'COMPLETE' : 'STREAMING'}</span>
         </div>
       </div>
-      <div ref={bodyRef} style={{ padding: '12px 16px', fontSize: 12, lineHeight: 1.7, height: 260, overflowY: 'auto', fontFamily: "'JetBrains Mono', monospace" }}>
-        {useLive
-          ? liveLog.map((event, i) => {
-            const c = TAG_COLOR_TERM[event.tag] || 'var(--text-3)';
-            return (
-              <div key={i} style={{ display: 'flex', gap: 12, borderLeft: event.tag === 'PASS' ? '2px solid var(--success)' : '2px solid transparent', paddingLeft: 6, marginLeft: -8 }}>
-                <span style={{ color: c, fontWeight: 700, minWidth: 44, flexShrink: 0 }}>[{event.tag}]</span>
-                <span style={{ color: event.tag === 'PASS' ? '#4ade80' : '#d4d4d8' }}>{event.message}</span>
-              </div>
-            );
-          })
-          : shown.map((line, i) => {
-            if (!line) return null;
-            if (!line.text) return <div key={i} style={{ height: 6 }} />;
-            const c = TAG_COLOR_TERM[line.tag] || 'var(--text-3)';
-            return (
-              <div key={i} style={{ display: 'flex', gap: 12, borderLeft: line.tag === 'PASS' ? '2px solid var(--success)' : '2px solid transparent', paddingLeft: 6, marginLeft: -8 }}>
-                <span style={{ color: 'var(--text-3)', minWidth: 52, flexShrink: 0 }}>{line.time}</span>
-                <span style={{ color: c, fontWeight: 700, minWidth: 44, flexShrink: 0 }}>[{line.tag}]</span>
-                <span style={{ color: '#d4d4d8' }}>{line.text}</span>
-              </div>
-            );
-          })}
-        {!done && (
-          <div style={{ display: 'flex', gap: 12, paddingLeft: 6, marginLeft: -8, borderLeft: '2px solid transparent' }}>
-            <span style={{ color: 'var(--accent)' }} className="blink-cursor">&nbsp;</span>
+      <div ref={bodyRef} style={{
+        flex: 1, padding: '40px 60px', overflowY: 'auto', maxHeight: 600,
+        background: 'transparent', display: 'flex', flexDirection: 'column',
+      }}>
+        <div className="mono" style={{ color: 'var(--text-3)', fontSize: 15, marginBottom: 24, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ color: '#4ade80' }}>➜</span>
+          <span style={{ color: '#60a5fa' }}>~</span>
+          <span style={{ color: 'var(--text)' }}>neofetch | lolcat</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: 60, marginBottom: 40, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="mono" style={{
+            fontSize: 13, lineHeight: 1.2, whiteSpace: 'pre', fontWeight: 800,
+            background: 'linear-gradient(180deg, #ff2a54, #ff5e3a, #ff9b00, #4ade80, #3b82f6, #a855f7)',
+            WebkitBackgroundClip: 'text', color: 'transparent', width: 'fit-content'
+          }}>
+            {ASCII_ART}
           </div>
-        )}
+
+          <div className="mono" style={{ fontSize: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ color: '#ff5e3a', fontWeight: 700 }}>velo<span style={{ color: 'var(--text)' }}>@</span>agent</div>
+            <div style={{ color: 'var(--text-3)' }}>---------</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Agent Name</span>: Velo</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Status</span>: {data.ci_status?.toUpperCase() === 'PASSED' ? 'Healing Completed ✓' : 'Healing Failed ✗'}</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Target Repo</span>: {data.repo_url?.replace('https://github.com/', '') || '—'}</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Branch</span>: {data.branch_name || '—'}</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>LLM Model</span>: Gemini 2.5 Flash</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Active Nodes</span>: Analyzer, LLM Solver, Sandbox</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Core Engine</span>: Velo OS x86_64</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Environment</span>: Isolated Docker Sandbox</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Memory</span>: {memoryUsed}GiB / 6969GiB</div>
+            <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Uptime</span>: 69 days, 69 mins, 69 sec</div>
+
+            <div style={{ display: 'flex', gap: 0, marginTop: 12 }}>
+              <div style={{ width: 18, height: 18, background: '#333' }} />
+              <div style={{ width: 18, height: 18, background: '#ef4444' }} />
+              <div style={{ width: 18, height: 18, background: '#22c55e' }} />
+              <div style={{ width: 18, height: 18, background: '#eab308' }} />
+              <div style={{ width: 18, height: 18, background: '#3b82f6' }} />
+              <div style={{ width: 18, height: 18, background: '#a855f7' }} />
+              <div style={{ width: 18, height: 18, background: '#06b6d4' }} />
+              <div style={{ width: 18, height: 18, background: '#f5f5f5' }} />
+            </div>
+          </div>
+        </div>
+
+        <div className="mono" style={{ color: 'var(--text-3)', fontSize: 15, marginBottom: 24, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ color: '#4ade80' }}>➜</span>
+          <span style={{ color: '#60a5fa' }}>~</span>
+          <span style={{ color: 'var(--text)' }}>cat /var/log/velo-agent.log</span>
+        </div>
+
+        <div style={{
+          fontSize: 14, lineHeight: 1.8,
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+        }}>
+          {useLive
+            ? liveLog.map((event, i) => {
+              const c = TAG_COLOR_TERM[event.tag] || 'var(--text-3)';
+              const isBug = event.tag === 'BUG';
+              const isPass = event.tag === 'PASS';
+              const isHeader = event.message?.startsWith('──');
+              return (
+                <div key={i} style={{
+                  display: 'flex', gap: 10,
+                  borderLeft: isPass ? '2px solid var(--success)' : isBug ? '2px solid #f87171' : '2px solid transparent',
+                  paddingLeft: 12, marginLeft: -14,
+                  marginTop: isHeader ? 16 : 4,
+                  opacity: isHeader ? 0.6 : 1,
+                }}>
+                  <span style={{ color: c, fontWeight: 700, minWidth: 54, flexShrink: 0, fontSize: 13 }}>
+                    [{event.tag}]
+                  </span>
+                  <span style={{ color: isPass ? '#4ade80' : isBug ? '#fca5a5' : isHeader ? 'var(--text-3)' : '#d4d4d8', flex: 1, whiteSpace: 'pre-wrap' }}>
+                    {event.message}
+                  </span>
+                </div>
+              );
+            })
+            : shown.map((line, i) => {
+              if (!line) return null;
+              if (!line.text) return <div key={i} style={{ height: 6 }} />;
+              const c = TAG_COLOR_TERM[line.tag] || 'var(--text-3)';
+              const isBug = line.tag === 'BUG' || line.tag === 'ERROR';
+              const isPass = line.tag === 'PASS';
+              const isHeader = line.text?.startsWith('──');
+              return (
+                <div key={i} style={{
+                  display: 'flex', gap: 10,
+                  borderLeft: isPass ? '2px solid var(--success)' : isBug ? '2px solid #f87171' : '2px solid transparent',
+                  paddingLeft: 12, marginLeft: -14,
+                  marginTop: isHeader ? 16 : 4,
+                  opacity: isHeader ? 0.6 : 1,
+                }}>
+                  <span style={{ color: 'var(--text-3)', minWidth: 64, flexShrink: 0 }}>{line.time}</span>
+                  <span style={{ color: c, fontWeight: 700, minWidth: 54, flexShrink: 0, fontSize: 13 }}>
+                    [{line.tag}]
+                  </span>
+                  <span style={{ color: isPass ? '#4ade80' : isBug ? '#fca5a5' : isHeader ? 'var(--text-3)' : '#d4d4d8', flex: 1, whiteSpace: 'pre-wrap' }}>
+                    {line.text}
+                  </span>
+                </div>
+              );
+            })}
+          {!done && (
+            <div style={{ display: 'flex', gap: 10, paddingLeft: 12, marginLeft: -14, borderLeft: '2px solid transparent', marginTop: 6 }}>
+              <span style={{ minWidth: 64, color: 'transparent' }}> </span>
+              <span style={{ minWidth: 54, color: 'transparent' }}> </span>
+              <span style={{ color: 'var(--text)' }} className="blink-cursor">&nbsp;</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -232,6 +352,68 @@ function buildResultAsText(data) {
 
   ln('═══════════════════════════════════════════════════════════════');
   ln('  VELO — CI/CD HEALING AGENT — ANALYSIS REPORT');
+  ln('═══════════════════════════════════════════════════════════════');
+  ln();
+
+  // ASCII Neofetch Art Watermark
+  const ASCII_ART = [
+    " .`                                 `/",
+    " `++:.                           `-/+/",
+    "  `+sso+:-`                 `.-/+oso:",
+    "   `/ossssso+/:-        -:/+osssso+-",
+    "     /ossssssss/        +ssssooo/-",
+    "      :osssssss/        osssso+++.",
+    "       -osssssso.      :ssssssso.",
+    "        .oossssso-````/ossssss+`",
+    "         ./ooosssso++osssssso+`",
+    "          `/+++ooooooooooooo/`",
+    "           `/++++++++++++++:",
+    "            `/++++/+++++++:",
+    "             `/:-:++oooo+:",
+    "               -+oooooo+:",
+    "               `+oooooo:",
+    "                `+oooo:",
+    "                 `ooo/",
+    "                  .o+`",
+    "                   -`"
+  ];
+  // System Stats aligned next to ASCII art
+  const sysStats = [
+    'velo@agent',
+    '---------',
+    `Agent Name: Velo`,
+    `Status: ${data.ci_status?.toUpperCase() === 'PASSED' ? 'Healing Completed ✓' : 'Healing Failed ✗'}`,
+    `Target Repo: ${data.repo_url?.replace('https://github.com/', '') || '—'}`,
+    `Branch: ${data.branch_name || '—'}`,
+    `LLM Model: Gemini 2.5 Flash`,
+    `Active Nodes: Analyzer, LLM Solver, Sandbox`,
+    `Core Engine: Velo OS x86_64`,
+    `Environment: Isolated Docker Sandbox`,
+    `Memory: 427GiB / 6969GiB`,
+    `Uptime: 69 days, 69 mins, 69 sec`,
+    `➜`,
+    `~`,
+    `cat /var/log/velo-agent.log`
+  ];
+
+  // Print ASCII art and system stats side-by-side
+  const maxLines = Math.max(ASCII_ART.length, sysStats.length);
+  const ART_WIDTH = 45; // Fixed width for padding ASCII art
+
+  // Create blank line buffer for vertical alignment
+  const TOP_PADDING = 5;
+  for (let i = 0; i < TOP_PADDING; i++) {
+    const artLine = (ASCII_ART[i] || '').padEnd(ART_WIDTH, ' ');
+    ln(artLine);
+  }
+
+  for (let i = 0; i < maxLines - TOP_PADDING; i++) {
+    const artIndex = i + TOP_PADDING;
+    const artLine = (ASCII_ART[artIndex] || '').padEnd(ART_WIDTH, ' ');
+    const statLine = sysStats[i] || '';
+    ln(artLine + statLine);
+  }
+  ln();
   ln('═══════════════════════════════════════════════════════════════');
   ln();
 
@@ -317,7 +499,8 @@ export default function Dashboard({ data, onReset }) {
   const isPassed = data.ci_status?.toUpperCase() === 'PASSED';
   const failures = useCountUp(data.total_failures ?? 0);
   const fixesCount = useCountUp(data.total_fixes ?? 0);
-  const score = data.score_breakdown?.final_score ?? data.score_breakdown?.final ?? 0;
+  const rawScore = data.score_breakdown?.final_score ?? data.score_breakdown?.final ?? 0;
+  const score = useCountUp(rawScore);
   const fixRate = data.total_failures > 0
     ? Math.round((data.total_fixes / data.total_failures) * 100) : 0;
 
@@ -359,14 +542,32 @@ export default function Dashboard({ data, onReset }) {
         padding: '24px 40px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, background: 'var(--text)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="16" height="16" fill="none" stroke="black" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-          </div>
-          <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: 'var(--text)' }}>Velo AI</span>
-          <span style={{ color: 'var(--border)', fontSize: 18, margin: '0 4px' }}>/</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ overflow: 'visible', flexShrink: 0, marginRight: 2, marginTop: -2 }}>
+            <defs>
+              <linearGradient id="vLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FF2A54" />
+                <stop offset="100%" stopColor="#FF5E3A" />
+              </linearGradient>
+              <linearGradient id="vRightGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#FF5E3A" />
+                <stop offset="100%" stopColor="#FF9B00" />
+              </linearGradient>
+              <filter id="vShadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="3" dy="0" stdDeviation="2" floodOpacity="0.5" floodColor="#000" />
+              </filter>
+              <filter id="vGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="10" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            <g filter="url(#vGlow)">
+              <path d="M 65 20 L 90 20 L 58 95 L 42 95 Z" fill="url(#vRightGrad)" />
+              <path d="M 10 20 L 35 20 L 58 95 L 42 95 Z" fill="url(#vLeftGrad)" filter="url(#vShadow)" />
+            </g>
+          </svg>
+          <span style={{ fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em', color: 'var(--text)' }}>elo AI</span>
+          <span style={{ color: 'var(--border)', fontSize: 18, margin: '0 8px' }}>/</span>
           <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-3)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {data.repo_url?.replace('https://github.com/', '') || 'Analysis'}
           </span>
@@ -481,10 +682,40 @@ export default function Dashboard({ data, onReset }) {
               sub: `of 200 max`,
             },
           ].map(s => (
-            <div key={s.label} className="card" style={{ padding: '16px 20px' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>{s.label}</div>
-              <div style={{ fontSize: s.mono ? 16 : 28, fontWeight: 700, letterSpacing: s.mono ? '0.02em' : '-0.04em', color: s.color, lineHeight: 1.2 }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{s.sub}</div>
+            <div key={s.label} className="card" style={{
+              padding: '16px 20px',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
+              overflow: 'hidden',
+              cursor: 'default'
+            }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)';
+                const glowColor = s.color === 'var(--text)' ? 'rgba(255,255,255,0.1)' : s.color + '33';
+                e.currentTarget.style.boxShadow = `0 12px 30px ${glowColor}`;
+                e.currentTarget.style.borderColor = s.color === 'var(--text)' ? 'var(--text-3)' : s.color;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              }}
+            >
+              {/* Background ambient glow */}
+              <div style={{
+                position: 'absolute', top: -30, right: -30, width: 100, height: 100,
+                background: s.color === 'var(--text)' ? '#ffffff' : s.color,
+                filter: 'blur(50px)', opacity: 0.15, zIndex: 0, pointerEvents: 'none',
+                transition: 'opacity 0.3s ease'
+              }} className="stat-glow" />
+
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8, fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>{s.label}</div>
+                <div style={{ fontSize: s.mono ? 16 : 32, fontWeight: 800, letterSpacing: s.mono ? '0.04em' : '-0.04em', color: s.color, lineHeight: 1.2 }}>
+                  {s.value}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8, opacity: 0.8 }}>{s.sub}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -851,7 +1082,7 @@ export default function Dashboard({ data, onReset }) {
             </svg>
             CI/CD Agent Log
           </div>
-          <TerminalLog runs={cicdTimeline} maxRetries={maxRetries} liveLog={liveLog} />
+          <TerminalLog runs={cicdTimeline} maxRetries={maxRetries} liveLog={liveLog} data={data} />
         </div>
 
       </main>

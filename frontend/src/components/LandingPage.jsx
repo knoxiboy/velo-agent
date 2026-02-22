@@ -24,8 +24,8 @@ function useScrollReveal(options = { threshold: 0.15, rootMargin: '0px 0px -50px
 
 const DEMO_PRESETS = [
   {
-    label: 'Demo: Velo-Agent (TK)',
-    tag: 'TK',
+    label: 'Main Core',
+    tag: 'velo',
     color: '#ffffff',
     highlight: true,
     repoUrl: 'https://github.com/oyelurker/velo-agent',
@@ -33,28 +33,58 @@ const DEMO_PRESETS = [
     leaderName: 'Tejas Kumar',
   },
   {
-    label: 'Demo: Practice Repo',
-    tag: 'PR',
+    label: 'Knoxiboy Test',
+    tag: 'knoxiboy',
     color: '#a1a1aa',
     repoUrl: 'https://github.com/knoxiboy/velo_test_repo',
     teamName: 'Vakratund',
-    leaderName: 'Agent Tester',
+    leaderName: 'Velo_Tester',
   },
   {
-    label: 'Demo: Test Repo',
-    tag: 'TEST',
+    label: 'Tejas Test',
+    tag: 'PTejasKr',
     color: '#a1a1aa',
     repoUrl: 'https://github.com/PTejasKr/tejesh_test_repo',
     teamName: 'Vakratund',
-    leaderName: 'Agent Tester',
+    leaderName: 'Velo_Tester',
   },
 ];
+
+const ASCII_ART = [
+  " .`                                 `/",
+  " `++:.                           `-/+/",
+  "  `+sso+:-`                 `.-/+oso:",
+  "   `/ossssso+/:-        -:/+osssso+-",
+  "     /ossssssss/        +ssssooo/-",
+  "      :osssssss/        osssso+++.",
+  "       -osssssso.      :ssssssso.",
+  "        .oossssso-````/ossssss+`",
+  "         ./ooosssso++osssssso+`",
+  "          `/+++ooooooooooooo/`",
+  "           `/++++++++++++++:",
+  "            `/++++/+++++++:",
+  "             `/:-:++oooo+:",
+  "               -+oooooo+:",
+  "               `+oooooo:",
+  "                `+oooo:",
+  "                 `ooo/",
+  "                  .o+`",
+  "                   -`"
+].join('\n');
 
 export default function LandingPage({ onSubmit, loading }) {
   const { user, signOut, loginUrl } = useAuth();
   const [repoUrl, setRepoUrl] = useState('');
   const [teamName, setTeamName] = useState('');
   const [leaderName, setLeaderName] = useState('');
+  const [memoryUsed, setMemoryUsed] = useState(420);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMemoryUsed(415 + Math.floor(Math.random() * 25));
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
 
   // Reveal Hooks for Bento Cards
   const revealRef1 = useScrollReveal();
@@ -90,13 +120,31 @@ export default function LandingPage({ onSubmit, loading }) {
         position: 'relative'
       }}>
         {/* Left: Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 32, height: 32, background: 'var(--accent)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="16" height="16" fill="none" stroke="black" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-          </div>
-          <span style={{ fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', color: 'var(--text)' }}>Velo AI</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ overflow: 'visible', flexShrink: 0, marginRight: 2, marginTop: -2 }}>
+            <defs>
+              <linearGradient id="vLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FF2A54" />
+                <stop offset="100%" stopColor="#FF5E3A" />
+              </linearGradient>
+              <linearGradient id="vRightGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#FF5E3A" />
+                <stop offset="100%" stopColor="#FF9B00" />
+              </linearGradient>
+              <filter id="vShadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="3" dy="0" stdDeviation="2" floodOpacity="0.5" floodColor="#000" />
+              </filter>
+              <filter id="vGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="10" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            <g filter="url(#vGlow)">
+              <path d="M 65 20 L 90 20 L 58 95 L 42 95 Z" fill="url(#vRightGrad)" />
+              <path d="M 10 20 L 35 20 L 58 95 L 42 95 Z" fill="url(#vLeftGrad)" filter="url(#vShadow)" />
+            </g>
+          </svg>
+          <span style={{ fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em', color: 'var(--text)' }}>elo AI</span>
         </div>
 
         {/* Center: Navigation Links */}
@@ -116,8 +164,9 @@ export default function LandingPage({ onSubmit, loading }) {
             </div>
           ) : (
             <a href={loginUrl} style={{ textDecoration: 'none' }}>
-              <button className="btn-ghost" style={{ padding: '8px 24px', fontSize: 14, border: '1px solid var(--accent-border)', color: 'var(--accent)', borderRadius: '24px', transition: 'all 0.2s' }} onMouseEnter={e => { e.target.style.background = 'var(--accent-muted)'; }} onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
-                Contact us
+              <button className="btn-ghost" style={{ padding: '8px 20px', fontSize: 13, border: '1px solid var(--accent-border)', color: 'var(--accent)', borderRadius: '24px', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 8 }} onMouseEnter={e => { e.target.style.background = 'var(--accent-muted)'; }} onMouseLeave={e => { e.target.style.background = 'transparent'; }}>
+                <Github size={16} />
+                Sign in with GitHub
               </button>
             </a>
           )}
@@ -148,20 +197,40 @@ export default function LandingPage({ onSubmit, loading }) {
             position: 'relative', // ensure text rendered above glow
           }}>
             Autonomous
-
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
-              width: 'clamp(3.5rem, 6vw, 5.5rem)', height: 'clamp(2rem, 4vw, 3rem)',
-              backgroundImage: 'url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop")',
-              backgroundSize: 'cover', backgroundPosition: 'center',
-              borderRadius: '50px', verticalAlign: 'middle', margin: '0 16px',
-              border: '2px solid rgba(255,126,103,0.3)', overflow: 'hidden'
-            }}>
+            <span
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
+                width: 'clamp(3.5rem, 6vw, 5.5rem)', height: 'clamp(2rem, 4vw, 3rem)',
+                backgroundImage: 'url("https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop")',
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                borderRadius: '50px', verticalAlign: 'middle', margin: '0 16px',
+                border: '2px solid rgba(255,126,103,0.3)', overflow: 'hidden',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.boxShadow = '0 0 30px rgba(255, 126, 103, 0.6)';
+                e.currentTarget.style.borderColor = 'rgba(255, 126, 103, 0.8)';
+                const triangle = e.currentTarget.querySelector('.play-triangle');
+                if (triangle) triangle.style.transform = 'scale(1.2) translateX(2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.4)';
+                e.currentTarget.style.borderColor = 'rgba(255, 126, 103, 0.3)';
+                const triangle = e.currentTarget.querySelector('.play-triangle');
+                if (triangle) triangle.style.transform = 'scale(1) translateX(0)';
+              }}
+              onClick={() => {
+                document.getElementById('terminal-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
               {/* Overlay tint to ensure the orange hue matches the aesthetic slightly */}
               <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,126,103,0.2)' }} />
-              <div style={{ position: 'relative', zIndex: 1, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '14px solid #fff', marginLeft: '4px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+              <div className="play-triangle" style={{ position: 'relative', zIndex: 1, width: 0, height: 0, borderTop: '8px solid transparent', borderBottom: '8px solid transparent', borderLeft: '14px solid #fff', marginLeft: '4px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))', transition: 'all 0.3s ease' }} />
             </span>
-
             Agent<br />
             For Your Software Needs
           </h1>
@@ -173,7 +242,7 @@ export default function LandingPage({ onSubmit, loading }) {
             maxWidth: 600,
             margin: '0 auto 40px',
           }}>
-            Velo is your relentless AI software engineer. From autonomous issue resolution and self-healing deployments to end-to-end continuous maintenance for over 50+ repositories.
+            Velo is your relentless AI software engineer. From autonomous issue resolution and self-healing deployments to end-to-end continuous maintenance for over 69+ repositories.
           </p>
 
           <button className="fade-in-3" style={{
@@ -187,7 +256,7 @@ export default function LandingPage({ onSubmit, loading }) {
             cursor: 'pointer',
             boxShadow: '0 4px 32px var(--accent-border)',
             transition: 'transform 0.2s',
-          }} onMouseEnter={e => e.target.style.transform = 'scale(1.05)'} onMouseLeave={e => e.target.style.transform = 'scale(1)'}>
+          }} onMouseEnter={e => e.target.style.transform = 'scale(1.05)'} onMouseLeave={e => e.target.style.transform = 'scale(1)'} onClick={() => document.getElementById('terminal-section')?.scrollIntoView({ behavior: 'smooth' })}>
             Explore our service
           </button>
         </div>
@@ -229,99 +298,205 @@ export default function LandingPage({ onSubmit, loading }) {
         </div>
 
         {/* ── Deployment Form & Interactive App Demo ── */}
-        <div style={{ maxWidth: 800, margin: '80px auto 0', width: '100%', padding: '0 24px' }}>
-          <div className="mock-window fade-in-5 animate-float" style={{ position: 'relative' }}>
-            <div className="mock-window-header">
-              <div className="mock-dots">
-                <div className="mock-dot r" />
-                <div className="mock-dot y" />
-                <div className="mock-dot g" />
+        <div id="terminal-section" style={{ width: '100%', height: '85vh', padding: '0 24px', margin: '60px auto 0', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+          <div className="mock-window fade-in-5" style={{
+            position: 'relative', flex: 1, display: 'flex', flexDirection: 'column',
+            borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.8), 0 0 40px rgba(255, 126, 103, 0.1)',
+            background: '#050505'
+          }}>
+            <div className="mock-window-header" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 24px', background: '#0a0a0a', borderBottom: '1px solid var(--border)'
+            }}>
+              <div className="mock-dots" style={{ display: 'flex', gap: 8 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f56' }} />
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ffbd2e' }} />
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#27c93f' }} />
               </div>
-              <div className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                interactive-demo — zsh
+              <div className="mono" style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>
+                velo-zsh
               </div>
+              <div style={{ width: 52 }} />
             </div>
 
-            <div style={{ padding: '32px 24px', background: 'rgba(5,5,5,0.9)' }}>
+            <div style={{ flex: 1, padding: '40px 60px', background: 'transparent', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+
+              <div className="mono" style={{ color: 'var(--text-3)', fontSize: 15, marginBottom: 24, display: 'flex', gap: 10, alignItems: 'center' }}>
+                <span style={{ color: '#4ade80' }}>➜</span>
+                <span style={{ color: '#60a5fa' }}>~</span>
+                <span style={{ color: 'var(--text)' }}>neofetch | lolcat</span>
+              </div>
+
+              <div style={{ display: 'flex', gap: 60, marginBottom: 40, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="mono" style={{
+                  fontSize: 13, lineHeight: 1.2, whiteSpace: 'pre', fontWeight: 800,
+                  background: 'linear-gradient(180deg, #ff2a54, #ff5e3a, #ff9b00, #4ade80, #3b82f6, #a855f7)',
+                  WebkitBackgroundClip: 'text', color: 'transparent', width: 'fit-content'
+                }}>
+                  {ASCII_ART}
+                </div>
+
+                <div className="mono" style={{ fontSize: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ color: '#ff5e3a', fontWeight: 700 }}>velo<span style={{ color: 'var(--text)' }}>@</span>agent</div>
+                  <div style={{ color: 'var(--text-3)' }}>---------</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Agent Name</span>: Velo</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Status</span>: Awaiting Repository Context...</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>LLM Model</span>: Gemini 2.5 Flash</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Active Nodes</span>: Analyzer, LLM Solver, Sandbox</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Core Engine</span>: Velo OS x86_64</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Environment</span>: Isolated Docker Sandbox</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>CPU</span>: Cloud Compute Cluster (128 Cores)</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Memory</span>: {memoryUsed}GiB / 6969GiB</div>
+                  <div><span style={{ color: '#ff5e3a', fontWeight: 700 }}>Uptime</span>: 69 days, 69 mins, 69 sec</div>
+
+                  <div style={{ display: 'flex', gap: 0, marginTop: 12 }}>
+                    <div style={{ width: 18, height: 18, background: '#333' }} />
+                    <div style={{ width: 18, height: 18, background: '#ef4444' }} />
+                    <div style={{ width: 18, height: 18, background: '#22c55e' }} />
+                    <div style={{ width: 18, height: 18, background: '#eab308' }} />
+                    <div style={{ width: 18, height: 18, background: '#3b82f6' }} />
+                    <div style={{ width: 18, height: 18, background: '#a855f7' }} />
+                    <div style={{ width: 18, height: 18, background: '#06b6d4' }} />
+                    <div style={{ width: 18, height: 18, background: '#f5f5f5' }} />
+                  </div>
+                </div>
+              </div>
 
               {/* Presets injected above the form for faster access */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-3)', marginRight: 8 }}>Test a live demo:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
+                <span className="mono" style={{ fontSize: 14, color: 'var(--text-3)' }}>&gt; available_targets:</span>
                 {DEMO_PRESETS.map(preset => (
                   <button
                     key={preset.label}
                     onClick={() => fillDemo(preset)}
                     className="btn-ghost mono"
                     style={{
-                      padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                      background: preset.highlight ? 'var(--accent-muted)' : 'transparent',
-                      color: preset.highlight ? 'var(--accent)' : 'var(--text-3)',
-                      border: `1px solid ${preset.highlight ? 'var(--accent-border)' : 'var(--border)'}`,
+                      padding: '8px 16px', borderRadius: 4, fontSize: 13,
+                      background: preset.highlight ? 'rgba(255, 126, 103, 0.1)' : 'transparent',
+                      color: preset.highlight ? 'var(--accent)' : 'var(--text-2)',
+                      border: `1px solid ${preset.highlight ? 'rgba(255, 126, 103, 0.3)' : 'var(--border)'}`,
+                      cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => {
+                      e.target.style.background = 'rgba(255, 126, 103, 0.2)';
+                      e.target.style.color = 'var(--text)';
+                    }}
+                    onMouseLeave={e => {
+                      e.target.style.background = preset.highlight ? 'rgba(255, 126, 103, 0.1)' : 'transparent';
+                      e.target.style.color = preset.highlight ? 'var(--accent)' : 'var(--text-2)';
                     }}
                   >
-                    {preset.tag}
+                    ./load_{preset.tag.toLowerCase()}
                   </button>
                 ))}
               </div>
 
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 32, flex: 1 }}>
                 <div>
-                  <label className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, display: 'block' }}>&gt; REPOSITORY_URL</label>
-                  <input
-                    className="input mono"
-                    type="url"
-                    required
-                    value={repoUrl}
-                    onChange={e => setRepoUrl(e.target.value)}
-                    placeholder="https://github.com/..."
-                    style={{ background: '#000', borderColor: 'var(--border-subtle)', fontSize: 13, padding: '12px 16px' }}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div>
-                    <label className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, display: 'block' }}>&gt; TEAM_NAME</label>
+                  <label className="mono" style={{ fontSize: 15, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ color: '#4ade80' }}>➜</span>
+                    <span style={{ color: '#60a5fa' }}>~</span>
+                    <span style={{ color: '#fba922' }}>export</span>
+                    <span style={{ color: 'var(--text)' }}>TARGET_REPOSITORY=</span>
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span className="mono" style={{ color: 'var(--text-3)', fontSize: 16, marginRight: 8, opacity: 0 }}>"</span>
                     <input
                       className="input mono"
-                      type="text"
+                      type="url"
                       required
-                      value={teamName}
-                      onChange={e => setTeamName(e.target.value)}
-                      placeholder="Vakratund"
-                      style={{ background: '#000', borderColor: 'var(--border-subtle)', fontSize: 13, padding: '12px 16px' }}
+                      value={repoUrl}
+                      onChange={e => setRepoUrl(e.target.value)}
+                      placeholder="https://github.com/..."
+                      style={{
+                        flex: 1, background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-subtle)',
+                        fontSize: 16, padding: '8px 0', color: '#fff', borderRadius: 0, boxShadow: 'none'
+                      }}
                     />
-                  </div>
-                  <div>
-                    <label className="mono" style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, display: 'block' }}>&gt; USER_NAME</label>
-                    <input
-                      className="input mono"
-                      type="text"
-                      required
-                      value={leaderName}
-                      onChange={e => setLeaderName(e.target.value)}
-                      placeholder="Tejas"
-                      style={{ background: '#000', borderColor: 'var(--border-subtle)', fontSize: 13, padding: '12px 16px' }}
-                    />
+                    <span className="mono" style={{ color: 'var(--text-3)', fontSize: 16, marginLeft: 8, opacity: 0 }}>"</span>
                   </div>
                 </div>
 
-                <button
-                  className="btn-primary"
-                  type="submit"
-                  disabled={loading}
-                  style={{ width: '100%', justifyContent: 'center', padding: '14px 0', fontSize: 14, marginTop: 16, borderRadius: 8, background: 'var(--accent)', color: '#000' }}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={16} className="spin" color="#000" />
-                      Initializing Agent...
-                    </>
-                  ) : (
-                    <>
-                      Deploy Node <span style={{ fontFamily: 'monospace' }}>_</span>
-                    </>
-                  )}
-                </button>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40 }}>
+                  <div>
+                    <label className="mono" style={{ fontSize: 15, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ color: '#4ade80' }}>➜</span>
+                      <span style={{ color: '#60a5fa' }}>~</span>
+                      <span style={{ color: '#fba922' }}>export</span>
+                      <span style={{ color: 'var(--text)' }}>ASSIGNED_TEAM=</span>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span className="mono" style={{ color: 'var(--text-3)', fontSize: 16, marginRight: 8, opacity: 0 }}>"</span>
+                      <input
+                        className="input mono"
+                        type="text"
+                        required
+                        value={teamName}
+                        onChange={e => setTeamName(e.target.value)}
+                        placeholder="Vakratund"
+                        style={{
+                          width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-subtle)',
+                          fontSize: 16, padding: '8px 0', color: '#fff', borderRadius: 0, boxShadow: 'none'
+                        }}
+                      />
+                      <span className="mono" style={{ color: 'var(--text-3)', fontSize: 16, marginLeft: 8, opacity: 0 }}>"</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mono" style={{ fontSize: 15, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ color: '#4ade80' }}>➜</span>
+                      <span style={{ color: '#60a5fa' }}>~</span>
+                      <span style={{ color: '#fba922' }}>export</span>
+                      <span style={{ color: 'var(--text)' }}>DEPLOYMENT_USER=</span>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span className="mono" style={{ color: 'var(--text-3)', fontSize: 16, marginRight: 8, opacity: 0 }}>"</span>
+                      <input
+                        className="input mono"
+                        type="text"
+                        required
+                        value={leaderName}
+                        onChange={e => setLeaderName(e.target.value)}
+                        placeholder="Tejas Kumar"
+                        style={{
+                          width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-subtle)',
+                          fontSize: 16, padding: '8px 0', color: '#fff', borderRadius: 0, boxShadow: 'none'
+                        }}
+                      />
+                      <span className="mono" style={{ color: 'var(--text-3)', fontSize: 16, marginLeft: 8, opacity: 0 }}>"</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: 40, display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <span className="mono" style={{ color: '#4ade80', fontSize: 15 }}>➜</span>
+                  <span className="mono" style={{ color: '#60a5fa', fontSize: 15 }}>~</span>
+                  <button
+                    className="btn-primary mono"
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      padding: '12px 24px', fontSize: 15, borderRadius: 0,
+                      background: 'var(--accent)', color: '#000', border: 'none',
+                      display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.2s',
+                      boxShadow: '0 0 20px rgba(255, 126, 103, 0.4)'
+                    }}
+                    onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={e => e.target.style.transform = 'translateY(0)'}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 size={18} className="spin" color="#000" />
+                        Provisioning...
+                      </>
+                    ) : (
+                      <>
+                        ./deploy_agent.sh <span className="blink-cursor" style={{ display: 'inline-block', width: 8, height: 16, background: '#000', marginLeft: 4 }} />
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -373,7 +548,7 @@ export default function LandingPage({ onSubmit, loading }) {
           flexWrap: 'wrap',
           gap: 24
         }}>
-          <span style={{ color: 'var(--text-3)', fontSize: 13 }}>© 2025- All Rights Reserved.</span>
+          <span style={{ color: 'var(--text-3)', fontSize: 13 }}>© 2026- All Rights Reserved.</span>
           <span style={{ color: 'var(--text-3)', fontSize: 13 }}>Velo AI Studio</span>
           {/* Built By text replacing social icons */}
           <div style={{ display: 'flex', gap: 16 }}>
