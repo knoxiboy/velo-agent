@@ -46,6 +46,22 @@ CORS(app, resources={r"/api/*": {
     "allow_headers": ["Content-Type", "Authorization"],
 }})
 
+# DDOS/Rate limiting map in-memory
+rate_limit_map = {}
+@app.before_request
+def rate_limiter():
+    from flask import request, jsonify
+    if request.path.startswith("/api/"):
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        now = time.time()
+        record = rate_limit_map.get(ip)
+        if record is None or (now - record['start'] > 60):
+            rate_limit_map[ip] = {'count': 1, 'start': now}
+        else:
+            if record['count'] > 60:
+                return jsonify({"error": "Rate limit exceeded. Please try again later"}), 429
+            record['count'] += 1
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",

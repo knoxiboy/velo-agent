@@ -1,4 +1,4 @@
-﻿# Velo: Autonomous CI/CD Healing Agent
+# Velo: Autonomous CI/CD Healing Agent
 
 > **Self-Correction for Modern DevOps Pipelines**
 
@@ -70,6 +70,7 @@ SSE-based real-time terminal showing the agent working live.
 | **State Management** | React Context API                      |
 | **Infrastructure**   | Docker SDK, GitPython, GitHub REST API |
 | **Deployment**       | Railway (backend), Vercel (frontend)   |
+| **SDLC & Security**  | Flask application layer global rate limiting (DDoS mitigations) |
 
 ---
 
