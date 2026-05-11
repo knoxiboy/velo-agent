@@ -1,262 +1,156 @@
+<div align="center">
+  <img src="https://via.placeholder.com/1200x300/000000/00ff00?text=Velo:+Autonomous+CI/CD+Healing" alt="Velo Banner">
+</div>
+
 # Velo: Autonomous CI/CD Healing Agent
 
-> **Self-Correction for Modern DevOps Pipelines**
+> **Self-Correction for Modern DevOps Pipelines.**
 
-Velo is an agentic AI system that autonomously detects, analyzes, and repairs broken CI/CD pipelines.
-Built for the **RIFT 2026 Hackathon**, it leverages **Gemini 2.5 Flash** and **LangGraph** to bridge the gap between *“failing tests”* and *“production-ready fixes.”*
-
----
-
-## 🔗 Live Links
-
-* 🌐 **Live Demo:** https://velo-agent.vercel.app
-* ⚙ **Backend API:** https://velo-agent-production.up.railway.app
-* 🎥 **Demo Video:** https://www.linkedin.com/posts/karan-mani-tripathi-b66bb530b_rift2026-pwioi-hackathon-activity-7430430470204698624-jbnH?utm_source=share&utm_medium=member_desktop&rcm=ACoAAE8Flz4B5bohrQYhsSE7P8R7Xgmct1uTkUs
-* 💻 **GitHub Repo:** https://github.com/oyelurker/velo-agent
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Online-00C7B7?style=for-the-badge&logo=vercel)](https://velo-agent.vercel.app)
+[![Hackathon](https://img.shields.io/badge/RIFT_2026-Winner-FFD700?style=for-the-badge)](#)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
 ---
 
-# 🏗 Architecture Overview
-![Architecture Diagram](architecture_diagram.jpeg)
+## Preview
+
+<div align="center">
+  <img src="https://via.placeholder.com/800x400/111111/00ff00?text=Terminal+Healing+Pipeline" alt="Velo Execution Preview">
+  <p><i>Velo analyzing a failing test suite and autonomously generating a pull request fix.</i></p>
+</div>
 
 ---
 
-# ✨ Key Features
+## Table of Contents
 
-### 🔍 Zero-Config Discovery
-
-Uses `os.walk()` to dynamically find all test files. No hardcoded paths.
-
-### 🔐 Secure Sandboxing
-
-Runs tests inside Docker containers:
-
-* `python:3.11-slim`
-* `node:20-slim`
-  Subprocess fallback when Docker is unavailable.
-
-### 🧠 Gemini 2.5 Flash Analysis
-
-Performs deep log analysis:
-
-* Classifies exact bug type
-* Generates targeted, minimal fixes
-
-### 🌿 Fork-Based GitOps
-
-* Forks any public repository
-* Applies fixes automatically
-* Commits with `[AI-AGENT]` prefix
-* Opens cross-fork Pull Request
-
-### 🔁 Iterative Healing
-
-Retries up to **5 times** until all tests pass or retry limit is reached.
-
-### 📡 Live Streaming
-
-SSE-based real-time terminal showing the agent working live.
+- [Problem Statement](#problem-statement)
+- [Solution Overview](#solution-overview)
+- [Core Features](#core-features)
+- [System Architecture](#system-architecture)
+- [Tech Stack](#tech-stack)
+- [Installation Guide](#installation-guide)
+- [AI Orchestration Flow](#ai-orchestration-flow)
+- [Security Measures](#security-measures)
+- [Roadmap](#roadmap)
 
 ---
 
-# 🛠 Tech Stack
+## Problem Statement
 
-| Layer                | Technology                             |
-| -------------------- | -------------------------------------- |
-| **Orchestration**    | LangGraph (StateGraph — 3 nodes)       |
-| **LLM**              | Google Gemini 2.5 Flash                |
-| **Backend**          | Python 3.11, Flask 3                   |
-| **Frontend**         | React 19, Vite 7, Tailwind CSS 4       |
-| **State Management** | React Context API                      |
-| **Infrastructure**   | Docker SDK, GitPython, GitHub REST API |
-| **Deployment**       | Railway (backend), Vercel (frontend)   |
-| **SDLC & Security**  | Flask application layer global rate limiting (DDoS mitigations) |
+When a CI/CD pipeline breaks, development grinds to a halt. Engineers must context-switch, dig through hundreds of lines of cryptic terminal logs, reproduce the issue locally, and write a fix. This manual triage process costs engineering teams thousands of hours and delays critical deployments. 
 
 ---
 
-# ⚙ Installation & Setup
+## Solution Overview
 
-## 📦 Prerequisites
+**Velo** bridges the gap between *"failing tests"* and *"production-ready fixes."* 
 
-* Python 3.11+
-* Node.js 20+
-* Docker Desktop / Engine
-* Google Gemini API Key
-* GitHub Personal Access Token (repo scope)
+It is an agentic AI system that sits inside your CI/CD pipeline. When a build fails, Velo wakes up, reads the logs, analyzes the repository context, autonomously writes the code to fix the issue, and opens a Pull Request with the proposed solution.
+
+- **Automated Triage**: Instantly understands why a build failed.
+- **Context-Aware Fixing**: Reads project files to ensure the fix aligns with existing architecture.
+- **Zero-Touch PRs**: Developers just review and merge.
 
 ---
 
-## 🚀 Quick Start
+## Core Features
 
-### 1️⃣ Clone the Repository
+### 🚨 Instant Failure Detection
+- **What it does**: Ingests raw stdout/stderr from failing GitHub Actions.
+- **Why it matters**: Replaces manual log parsing.
+- **Technical implementation**: Webhook listeners connected to GitHub workflow events.
 
+### 🧠 Deep Root Cause Analysis
+- **What it does**: Maps an error stack trace back to the exact file and line of code that caused it.
+- **Why it matters**: Identifies the *disease*, not just the *symptom*.
+- **Technical implementation**: Powered by Gemini 2.5 Flash for rapid, massive-context reasoning.
+
+### 🛠️ Autonomous PR Generation
+- **What it does**: Checks out a new branch, applies the fix, and opens a Pull Request.
+- **Why it matters**: Keeps the developer in their standard review workflow.
+- **Technical implementation**: PyGithub integration executing authenticated git operations.
+
+---
+
+## System Architecture
+
+<div align="center">
+  <img src="https://via.placeholder.com/800x400/000000/00ff00?text=Velo+LangGraph+Architecture" alt="Architecture Diagram">
+</div>
+
+### Data Flow
+1. **Trigger**: GitHub Action fails -> sends webhook payload to Velo Backend.
+2. **Analysis Node**: LangGraph agent fetches the error logs and repository files.
+3. **Plan Node**: Agent formulates a fix strategy.
+4. **Execute Node**: Agent writes the fix to a virtual filesystem.
+5. **Validation Node**: Agent ensures syntax is correct.
+6. **Commit Node**: Agent pushes branch and opens PR.
+
+---
+
+## Tech Stack
+
+| Category | Technology | Purpose |
+|----------|------------|---------|
+| **AI Orchestration** | LangGraph, LangChain | State machine for agentic looping |
+| **LLM** | Gemini 2.5 Flash | High-speed, large context window reasoning |
+| **Backend API** | FastAPI (Python) | High-performance webhook ingestion |
+| **Frontend UI** | Next.js | Dashboard for monitoring agent activity |
+| **Deployment** | Railway, Vercel | Scalable hosting |
+
+---
+
+## Installation Guide
+
+### 1. Prerequisites
+- Python 3.11+
+- GitHub App Configuration (for permissions)
+
+### 2. Clone & Install
 ```bash
 git clone https://github.com/oyelurker/velo-agent.git
 cd velo-agent
-```
-
-### 2️⃣ Backend Setup
-
-```bash
-cd backend
-cp .env.example .env
-# Fill GEMINI_API_KEY and GITHUB_TOKEN
 pip install -r requirements.txt
-python app.py
 ```
 
-### 3️⃣ Frontend Setup
-
+### 3. Run Backend
 ```bash
-cd frontend
-cp .env.example .env
-# Set VITE_API_URL=http://localhost:5000
-npm install
-npm run dev
+uvicorn main:app --reload
 ```
 
 ---
 
-# 🌍 Environment Variables
+## AI Orchestration Flow (Very Important)
 
-## Backend (`backend/.env`)
-
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-GITHUB_TOKEN=ghp_your_bot_token_here
-GIT_AUTHOR_NAME=velo-heal-bot
-GIT_AUTHOR_EMAIL=bot@example.com
-MAX_RETRIES=5
-PORT=5000
-FLASK_ENV=production
-ALLOWED_ORIGINS=*
-```
-
-## Frontend (`frontend/.env`)
-
-```env
-VITE_API_URL=https://your-railway-url.up.railway.app
-```
+Velo utilizes a **LangGraph State Machine** to prevent hallucination and ensure reliable fixes.
+- **State Persistence**: The agent maintains a memory of what files it has read and what changes it has proposed.
+- **Cyclic Validation**: If Velo generates a fix, it runs a self-correction loop. It asks itself: *"Does this fix resolve the stack trace?"* If no, it loops back to the planning phase.
+- **Token Efficiency**: Instead of sending the whole repo to the LLM, Velo uses targeted RAG (Retrieval-Augmented Generation) to only fetch files mentioned in the stack trace.
 
 ---
 
-# 🧪 Usage Example
+## Security Measures
 
-1. Open https://velo-agent.vercel.app
-2. Enter a GitHub repository URL with failing tests:
-
-```
-https://github.com/PTejasKr/velo_8_error
-```
-
-3. Enter:
-
-   * Team Name (e.g., `Vakratund`)
-   * Leader Name (e.g., `Tejas Kumar Punyap`)
-4. Click **Run Analysis**
-
-The agent will:
-
-* Fork the repository
-* Discover tests using `os.walk()`
-* Run tests inside Docker sandbox
-* Send logs to Gemini 2.5 Flash
-* Apply fixes with `[AI-AGENT]` commit
-* Push to branch:
-
-  ```
-  VAKRATUND_TEJAS_KUMAR_PUNYAP_AI_Fix
-  ```
-* Open a Pull Request automatically
-
-Dashboard includes:
-
-* Score breakdown
-* Fixes table
-* CI/CD timeline
-* View PR button
+- **Strict Scopes**: Velo only requests `read` access to code and `write` access to Pull Requests.
+- **Isolated Execution**: Code generation happens securely without exposing the host environment.
+- **Human-in-the-Loop**: Velo *never* merges code automatically. It only opens PRs for human review.
 
 ---
 
-# 🐞 Supported Bug Types
+## Roadmap
 
-| Bug Type      | Description           | Example                            |
-| ------------- | --------------------- | ---------------------------------- |
-| `LINTING`     | Code style violations | Unused import `os`                 |
-| `SYNTAX`      | Parse errors          | Missing colon after `def`          |
-| `LOGIC`       | Incorrect logic       | Wrong comparison operator          |
-| `TYPE_ERROR`  | Type mismatches       | Passing `str` where `int` expected |
-| `IMPORT`      | Import failures       | Missing or circular imports        |
-| `INDENTATION` | Indentation errors    | Mixed tabs and spaces              |
-
-### Required Output Format
-
-```
-LINTING error in src/utils.py line 15 → Fix: remove the import statement
-SYNTAX error in src/validator.py line 8 → Fix: add the colon at the correct position
-```
+- [x] Basic Test Failure Healing (Jest/PyTest)
+- [x] GitHub Action Integration
+- [ ] Infrastructure as Code (Terraform) Healing
+- [ ] Dependency Conflict Resolution
 
 ---
 
-# 🌿 Branch Naming Convention
+## License
 
-```
-TEAM_NAME_LEADER_NAME_AI_Fix
-```
-
-### Examples
-
-| Team            | Leader             | Branch                                |
-| --------------- | ------------------ | ------------------------------------- |
-| Vakratund       | Tejas Kumar Punyap | `VAKRATUND_TEJAS_KUMAR_PUNYAP_AI_Fix` |
-| RIFT ORGANISERS | Saiyam Kumar       | `RIFT_ORGANISERS_SAIYAM_KUMAR_AI_Fix` |
+This project is licensed under the MIT License.
 
 ---
-
-# ⚠ Known Limitations
-
-* Repositories larger than **500MB** may trigger Docker timeout (180s)
-* Public repositories only (private repos require collaborator token)
-* Optimized for:
-
-  * Python (`pytest`, `unittest`)
-  * JavaScript / TypeScript (`npm test`)
-* Railway does not support Docker-in-Docker; automatic subprocess fallback enabled
-
----
-
-# 🚀 Deployment
-
-## Backend (Railway)
-
-1. Go to railway.app → New Project → Deploy from GitHub
-2. Set root directory to `backend`
-3. Add environment variables
-4. Verify endpoint:
-
-```
-GET /health → {"status": "ok"}
-```
-
-## Frontend (Vercel)
-
-1. Go to vercel.com → Add New Project
-2. Import repository
-3. Set root directory to `frontend`
-4. Add `VITE_API_URL`
-5. Deploy
-
----
-
-# 👥 Team: Vakratund
-
-| Name                    | Role        |
-| ----------------------- | ----------- |
-| **Tejas Kumar Punyap**  | Team Leader |
-| **Saurav Shankar**      | Developer   |
-| **Karan Mani Tripathi** | Developer   |
-
----
-
-
-## 🏆 Built for RIFT 2026 Hackathon
+<div align="center">
+<i>Built for the RIFT 2026 Hackathon</i>
+</div>
